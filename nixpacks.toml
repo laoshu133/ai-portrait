@@ -4,11 +4,3 @@ start = ["npm", "start"]
 
 [variables]
 NEXT_TELEMETRY_DISABLED = "1"
-NODE_ENV = "production"
-PORT = "3000"
-
-[phase.setup]
-nixpacks = "nodejs-20"
-
-[phase.build]
-command = "npm ci --legacy-peer-deps"
