@@ -2,6 +2,10 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Set PORT env for Next.js
+ENV PORT=3000
+ENV HOST=0.0.0.0
+
 # Copy package files
 COPY package*.json ./
 
