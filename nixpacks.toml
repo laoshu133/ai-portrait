@@ -1,6 +1,1 @@
 [build]
-build = ["npm run build"]
-start = ["npm", "start"]
-
-[variables]
-NEXT_TELEMETRY_DISABLED = "1"
