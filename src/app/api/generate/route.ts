@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { uploadToR2, generateFileKey } from '@/lib/r2';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
+  // Require authentication
+  const { userId } = await auth();
+  
+  if (!userId) {
+    return NextResponse.json(
+      { error: 'Unauthorized - Please sign in' },
+      { status: 401 }
+    );
+  }
+
   try {
     const formData = await req.formData();
     const image = formData.get('image') as File;
@@ -23,7 +34,7 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
 
     // Upload original image to R2
-    const originalKey = generateFileKey(image.name);
+    const originalKey = generateFileKey(image.name, userId);
     const originalUrl = await uploadToR2(buffer, originalKey, image.type);
 
     // Generate prompt based on type

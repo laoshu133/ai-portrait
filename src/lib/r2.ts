@@ -36,9 +36,10 @@ export async function getPresignedUrl(key: string): Promise<string> {
   return getSignedUrl(r2Client, command, { expiresIn: 3600 });
 }
 
-export function generateFileKey(filename: string): string {
+export function generateFileKey(filename: string, userId?: string): string {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8);
   const ext = filename.split('.').pop();
-  return `uploads/${timestamp}-${random}.${ext}`;
+  const userPrefix = userId ? `users/${userId}` : 'uploads';
+  return `${userPrefix}/${timestamp}-${random}.${ext}`;
 }

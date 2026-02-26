@@ -2,11 +2,14 @@
 
 import { useState } from 'react';
 import { zh, en } from '@/i18n/translations';
+import { UserButton, useUser } from '@clerk/nextjs';
+import Link from 'next/link';
 
 type PhotoType = 'id' | 'festival' | 'memorial';
 type Step = 'home' | 'upload' | 'generating' | 'result';
 
 export default function Home() {
+  const { isSignedIn, user } = useUser();
   const [lang, setLang] = useState<'zh' | 'en'>('zh');
   const [step, setStep] = useState<Step>('home');
   const [photoType, setPhotoType] = useState<PhotoType | null>(null);
@@ -48,6 +51,10 @@ export default function Home() {
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          alert(lang === 'zh' ? '请先登录！' : 'Please sign in first!');
+          return;
+        }
         throw new Error('Generation failed');
       }
 
@@ -74,6 +81,44 @@ export default function Home() {
     setStep('upload');
   };
 
+  // Show login prompt if not signed in
+  if (!isSignedIn) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50 flex items-center justify-center">
+        <div className="text-center space-y-6 p-8">
+          <h1 className="text-4xl font-bold text-gray-900">
+            {lang === 'zh' ? '银龄相馆' : 'Silver Portrait'}
+          </h1>
+          <p className="text-xl text-gray-600">
+            {lang === 'zh' ? '请登录后使用 AI 形象照服务' : 'Please sign in to use AI portrait service'}
+          </p>
+          <div className="flex gap-4 justify-center">
+            <Link
+              href="/sign-in"
+              className="px-6 py-3 bg-orange-600 text-white font-semibold rounded-xl hover:bg-orange-700 transition-colors"
+            >
+              {lang === 'zh' ? '登录' : 'Sign In'}
+            </Link>
+            <Link
+              href="/sign-up"
+              className="px-6 py-3 bg-white text-gray-700 font-semibold rounded-xl border border-gray-300 hover:bg-gray-50 transition-colors"
+            >
+              {lang === 'zh' ? '注册' : 'Sign Up'}
+            </Link>
+          </div>
+          <div className="pt-4">
+            <button
+              onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
+              className="text-orange-600 hover:underline"
+            >
+              {lang === 'zh' ? 'English' : '中文'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50">
       {/* Hero Section - High converting hero with clear CTA */}
@@ -84,28 +129,14 @@ export default function Home() {
             <div className="text-3xl font-bold text-orange-900">
               {lang === 'zh' ? '银龄相馆' : 'Silver Portrait'}
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-gray-600 text-sm">{t.language}:</span>
+            <div className="flex items-center gap-4">
               <button
-                onClick={() => setLang('zh')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                  lang === 'zh' 
-                    ? 'bg-orange-600 text-white shadow-lg' 
-                    : 'bg-white text-gray-600 hover:bg-orange-100'
-                }`}
+                onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
+                className="text-sm text-gray-600 hover:text-orange-600"
               >
-                中文
+                {lang === 'zh' ? 'EN' : '中文'}
               </button>
-              <button
-                onClick={() => setLang('en')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                  lang === 'en' 
-                    ? 'bg-orange-600 text-white shadow-lg' 
-                    : 'bg-white text-gray-600 hover:bg-orange-100'
-                }`}
-              >
-                EN
-              </button>
+              <UserButton afterSignOutUrl="/" />
             </div>
           </div>
         </div>
@@ -114,7 +145,7 @@ export default function Home() {
         <div className="container mx-auto px-4 py-16 text-center relative z-10">
           <div className="max-w-3xl mx-auto">
             <div className="inline-block px-4 py-1.5 bg-orange-100 text-orange-700 rounded-full text-sm font-medium mb-6">
-              {lang === 'zh' ? '🎉 专为老年人设计的 AI 形象照服务' : '🎉 AI Portrait Service Designed for Seniors'}
+              {lang === 'zh' ? '🎉 欢迎回来，' + (user?.firstName || '用户') : `🎉 Welcome back, ${user?.firstName || 'User'}`}
             </div>
             <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
               {lang === 'zh' ? (
