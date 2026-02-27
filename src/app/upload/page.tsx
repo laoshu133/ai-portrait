@@ -67,20 +67,30 @@ function UploadContent() {
         body: formData,
       });
 
-      const data = await response.json();
+      let data;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(`Server error: ${response.status} - ${text.substring(0, 100)}`);
+      }
 
       if (!response.ok) {
         if (response.status === 401) {
           router.push('/sign-in');
           return;
         }
-        throw new Error(data.error || 'Generation failed');
+        throw new Error(data.error || `Generation failed: ${response.status}`);
       }
 
       if (data.imageUrl) {
         setGeneratedImage(data.imageUrl);
+      } else {
+        throw new Error(data.error || 'No image returned');
       }
     } catch (err: any) {
+      console.error('Generation error:', err);
       setError(err.message || 'Generation failed');
     } finally {
       setIsGenerating(false);
