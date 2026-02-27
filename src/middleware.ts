@@ -5,10 +5,10 @@ const isProtectedRoute = createRouteMatcher([
   '/(.*)',
 ]);
 
-export default clerkMiddleware((auth, req) => {
+export default clerkMiddleware(async (auth, req) => {
   // Protect all routes except static files and API routes
   if (isProtectedRoute(req)) {
-    auth().protect();
+    await auth.protect();
   }
 });
 
