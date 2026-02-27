@@ -90,8 +90,8 @@ export default function Home() {
       setShowLoginPrompt(true);
       return;
     }
-    setPhotoType(type);
-    setStep('upload');
+    // Redirect to upload page
+    window.location.href = `/upload?type=${type}`;
   };
 
   const handleStartClick = () => {
@@ -99,7 +99,7 @@ export default function Home() {
       setShowLoginPrompt(true);
       return;
     }
-    document.getElementById('get-started')?.scrollIntoView({ behavior: 'smooth' });
+    window.location.href = '/upload';
   };
 
   // Login prompt modal
