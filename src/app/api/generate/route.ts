@@ -1,8 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
+import { uploadToR2 } from '@/lib/r2';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
+
+function extractBase64ImageFromResponse(content: any): string | null {
+  // Check if content is an array (Gemini returns multiple parts)
+  if (Array.isArray(content)) {
+    for (const part of content) {
+      if (part.inlineData) {
+        return part.inlineData.data;
+      }
+      if (part.type === 'image_url' && part.image_url?.url) {
+        const url = part.image_url.url;
+        if (url.startsWith('data:image/')) {
+          return url.split(',')[1];
+        }
+        return url;
+      }
+    }
+  }
+  // Check OpenAI chat format
+  if (typeof content === 'string') {
+    // Look for base64 image data
+    const base64Match = content.match(/data:image\/[a-zA-Z0-9]+;base64,([A-Za-z0-9+/=]+)/);
+    if (base64Match) {
+      return base64Match[1];
+    }
+  }
+  return null;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -26,20 +54,20 @@ export async function POST(req: NextRequest) {
 
     const arrayBuffer = await image.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    const base64 = buffer.toString('base64');
+    const base64Input = buffer.toString('base64');
     const mimeType = image.type || 'image/jpeg';
-    const imageDataUrl = 'data:' + mimeType + ';base64,' + base64;
+    const imageDataUrl = 'data:' + mimeType + ';base64,' + base64Input;
 
     const prompts: Record<string, string> = {
       id: lang === 'zh' 
-        ? 'Generate a formal ID photo with blue background, business attire, smiling, professional look'
-        : 'Generate a formal ID photo with blue background, business attire, smiling, professional look',
+        ? '基于这张照片，生成一张正式的证件照，蓝色背景，穿着正装，面带微笑，保持人物特征不变。'
+        : 'Based on this photo, generate a formal ID photo with blue background, business attire, smiling, keep the original person features.',
       festival: lang === 'zh'
-        ? 'Generate a festive celebration photo with celebratory red background, warm smile, Chinese New Year style'
-        : 'Generate a festive celebration photo with celebratory red background, warm smile',
+        ? '基于这张照片，生成一张喜庆节日照片，红色喜庆背景，温暖的笑容，保持人物特征不变。'
+        : 'Based on this photo, generate a festive celebration photo with celebratory red background, warm smile, keep the original person features.',
       memorial: lang === 'zh'
-        ? 'Generate a dignified black and white memorial portrait, serious expression, classic style'
-        : 'Generate a dignified black and white memorial portrait, serious expression',
+        ? '基于这张照片，生成一张庄重的黑白纪念肖像，严肃的表情，经典风格，保持人物特征不变。'
+        : 'Based on this photo, generate a dignified black and white memorial portrait, serious expression, classic style, keep the original person features.',
     };
 
     const prompt = prompts[type] || prompts.id;
@@ -59,15 +87,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Try using Qwen VL model to process image via chat completions
-    const chatResponse = await fetch(apiUrl + '/v1/chat/completions', {
+    // Use chat completions endpoint which we confirmed works for gemini-3-pro-image-preview
+    const response = await fetch(apiUrl + '/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + apiKey
       },
       body: JSON.stringify({
-        model: 'Qwen/Qwen2.5-VL-72B-Instruct',
+        model: model,
         messages: [
           {
             role: 'user',
@@ -77,42 +105,87 @@ export async function POST(req: NextRequest) {
             ]
           }
         ],
-        max_tokens: 1000
+        max_tokens: 2000,
+        response_modalities: ['image', 'text']
       })
     });
 
-    const chatText = await chatResponse.text();
-    console.log('Chat API response status:', chatResponse.status);
-    console.log('Chat API response:', chatText.substring(0, 500));
+    const responseText = await response.text();
+    console.log('API response status:', response.status);
+    console.log('API response length:', responseText.length);
 
-    if (!chatResponse.ok) {
+    if (!response.ok) {
       return NextResponse.json(
-        { error: 'AI API error: ' + chatResponse.status + ' - ' + chatText.substring(0, 200) },
+        { error: 'AI API error: ' + response.status + ' - ' + responseText.substring(0, 300) },
         { status: 502 }
       );
     }
 
-    let chatData;
+    let data;
     try {
-      chatData = JSON.parse(chatText);
-    } catch {
-      return NextResponse.json({ error: 'Invalid AI API response format' }, { status: 502 });
+      data = JSON.parse(responseText);
+    } catch (e) {
+      console.error('JSON parse error:', e);
+      return NextResponse.json({ error: 'Invalid JSON response from AI API: ' + responseText.substring(0, 200) }, { status: 502 });
     }
 
-    // For now, return a placeholder since VL models don't generate images directly
-    // The user would need to use a proper image generation model
+    // Extract image data from response
+    const message = data.choices?.[0]?.message;
+    if (!message) {
+      console.error('No message in response:', JSON.stringify(data, null, 2));
+      return NextResponse.json({ error: 'No response from AI model' }, { status: 502 });
+    }
+
+    let imageBase64: string | null = null;
+    
+    // Check for inline image data in content array (OpenAI-compatible format)
+    if (Array.isArray(message.content)) {
+      imageBase64 = extractBase64ImageFromResponse(message.content);
+    } else if (typeof message.content === 'string') {
+      imageBase64 = extractBase64ImageFromResponse(message.content);
+    }
+
+    if (!imageBase64) {
+      console.error('No image found in response:', JSON.stringify(data, null, 2));
+      return NextResponse.json(
+        { 
+          error: 'AI model did not return an image. Response content: ' + 
+            (typeof message.content === 'string' 
+              ? message.content.substring(0, 200) 
+              : JSON.stringify(message.content)) 
+        }, 
+        { status: 502 }
+      );
+    }
+
+    // If imageBase64 is already a data URL, extract just the base64 part
+    if (imageBase64.startsWith('data:')) {
+      imageBase64 = imageBase64.split(',')[1];
+    }
+
+    // Convert base64 to buffer
+    const imageBuffer = Buffer.from(imageBase64, 'base64');
+    
+    // Generate unique filename
+    const timestamp = Date.now();
+    const filename = `generated/${userId}_${timestamp}_${type}.png`;
+
+    // Upload to R2
+    const uploadedUrl = await uploadToR2(imageBuffer, filename, 'image/png');
+    
+    console.log('Image generated successfully:', uploadedUrl);
+
     return NextResponse.json({
       success: true,
-      imageUrl: imageDataUrl,
+      imageUrl: uploadedUrl,
       originalUrl: imageDataUrl,
-      note: 'Using Qwen VL model - this is a preview. Image generation requires gemini model configuration.',
-      description: chatData.choices?.[0]?.message?.content || 'No description'
+      message: 'Image generated successfully'
     });
 
   } catch (error) {
     console.error('Generation error:', error);
     return NextResponse.json(
-      { error: 'Generation failed: ' + String(error) },
+      { error: '生成失败: ' + String(error) },
       { status: 500 }
     );
   }
