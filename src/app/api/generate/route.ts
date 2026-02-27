@@ -9,6 +9,10 @@ function extractBase64ImageFromResponse(content: any): string | null {
   // Check if content is an array (Gemini returns multiple parts)
   if (Array.isArray(content)) {
     for (const part of content) {
+      // Gemini format: { data: "base64...", mime_type: "image/png" }
+      if (part.data && part.mime_type?.startsWith('image/')) {
+        return part.data;
+      }
       if (part.inlineData) {
         return part.inlineData.data;
       }
