@@ -5,18 +5,15 @@ import { uploadToR2 } from '@/lib/r2';
 export const runtime = 'nodejs';
 export const maxDuration = 180;
 
-const MAX_IMAGE_SIZE_MB = 10;
+const MAX_IMAGE_SIZE_MB = 8;
 
 function extractBase64ImageFromMessage(message: any): string | null {
-  console.log('Extracting image from message, content type:', typeof message.content);
-  
   if (!message.content) {
     console.error('message.content is empty');
     return null;
   }
 
   if (Array.isArray(message.content)) {
-    console.log('Content is array, length:', message.content.length);
     for (const part of message.content) {
       if (part.data && part.mime_type?.startsWith('image/')) {
         console.log('Found image in part.data, length:', part.data.length);
@@ -28,7 +25,6 @@ function extractBase64ImageFromMessage(message: any): string | null {
       }
       if (part.type === 'image_url' && part.image_url?.url) {
         const url = part.image_url.url;
-        console.log('Found image_url in content');
         if (url.startsWith('data:image/')) {
           return url.split(',')[1];
         }
@@ -38,7 +34,6 @@ function extractBase64ImageFromMessage(message: any): string | null {
   }
 
   if (typeof message.content === 'string') {
-    console.log('Content is string, length:', message.content.length);
     const base64Match = message.content.match(/data:image\/[a-zA-Z0-9]+;base64,([A-Za-z0-9+/=]+)/);
     if (base64Match) {
       console.log('Found base64 image in string');
@@ -71,7 +66,7 @@ export async function POST(req: NextRequest) {
     const type = (formData.get('type') as string) || 'id';
     const lang = (formData.get('lang') as string) || 'zh';
 
-    console.log('Received: image=', image?.name, 'size=', image?.size, 'type=', type, 'lang=', lang);
+    console.log('Received: image=', image?.name, 'size=', image?.size, 'type=', type);
 
     if (!image) {
       return NextResponse.json({ error: 'No image provided' }, { status: 400 });
@@ -85,14 +80,12 @@ export async function POST(req: NextRequest) {
     }
 
     const arrayBuffer = await image.arrayBuffer();
-    console.log('Read arrayBuffer, size:', arrayBuffer.byteLength);
-    
     const buffer = Buffer.from(arrayBuffer);
     const base64Input = buffer.toString('base64');
     const mimeType = image.type || 'image/jpeg';
     const imageDataUrl = 'data:' + mimeType + ';base64,' + base64Input;
 
-    console.log('Input image converted to base64, length:', base64Input.length);
+    console.log('Input image converted, base64 length:', base64Input.length);
 
     const prompts: Record<string, string> = {
       id: lang === 'zh' 
@@ -107,13 +100,11 @@ export async function POST(req: NextRequest) {
     };
 
     const prompt = prompts[type] || prompts.id;
-    console.log('Using prompt:', prompt);
-
     const apiUrl = process.env.AIHUBMIX_API_URL || 'https://aihubmix.com';
     const apiKey = process.env.AIHUBMIX_API_KEY;
     const model = process.env.AI_MODEL || 'gemini-3.1-flash-image-preview';
 
-    console.log('API config:', { apiUrl, model, hasKey: !!apiKey });
+    console.log('API config: model=', model, 'apiUrl=', apiUrl, 'hasKey=', !!apiKey);
 
     if (!apiKey || apiKey === 'demo' || apiKey.includes('your-')) {
       return NextResponse.json(
@@ -136,10 +127,15 @@ export async function POST(req: NextRequest) {
       max_tokens: 2000
     };
 
+    // Free up memory
+    (buffer as any) = null;
+    (base64Input as any) = null;
+    (imageDataUrl as any) = null;
+
     console.log('Sending request to AI API...');
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 150000); // 2.5 minutes timeout
+    const timeoutId = setTimeout(() => controller.abort(), 160000);
 
     try {
       const response = await fetch(apiUrl + '/v1/chat/completions', {
@@ -154,15 +150,17 @@ export async function POST(req: NextRequest) {
 
       clearTimeout(timeoutId);
 
-      console.log('AI API responded with status:', response.status);
+      console.log('AI API responded, status:', response.status);
 
       const responseText = await response.text();
-      console.log('Response text length:', responseText.length);
+      const respLength = responseText.length;
+      console.log('Response received, length:', respLength);
 
       if (!response.ok) {
-        console.error('AI API returned error status:', response.status, 'Preview:', responseText.substring(0, 200));
+        const preview = respLength > 200 ? responseText.substring(0, 200) : responseText;
+        console.error('AI API error:', response.status, preview);
         return NextResponse.json(
-          { error: 'AI API error: ' + response.status + ' - ' + responseText.substring(0, 200) },
+          { error: 'AI API error: ' + response.status + ' - ' + preview },
           { status: 502 }
         );
       }
@@ -170,12 +168,13 @@ export async function POST(req: NextRequest) {
       let data;
       try {
         data = JSON.parse(responseText);
-        console.log('JSON parsed successfully');
-        console.log('Has choices:', !!data.choices, 'choices length:', data.choices?.length);
       } catch (e) {
-        console.error('JSON parse failed:', e, 'Preview:', responseText.substring(0, 200));
+        const preview = respLength > 200 ? responseText.substring(0, 200) : responseText;
+        console.error('JSON parse failed:', e, preview);
         return NextResponse.json({ error: 'Invalid JSON response from AI API' }, { status: 502 });
       }
+
+      console.log('JSON parsed, choices:', data.choices?.length);
 
       if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
         console.error('No choices in response');
@@ -190,17 +189,32 @@ export async function POST(req: NextRequest) {
 
       const imageBase64 = extractBase64ImageFromMessage(choice.message);
       if (!imageBase64) {
-        return NextResponse.json({ error: 'AI model did not return an image' }, { status: 502 });
+        let preview = '';
+        if (typeof choice.message.content === 'string') {
+          preview = choice.message.content.substring(0, 200);
+        } else if (Array.isArray(choice.message.content)) {
+          preview = `Array(${choice.message.content.length})`;
+        }
+        console.error('No image extracted, content preview:', preview);
+        return NextResponse.json(
+          { error: 'AI model did not return an image. Preview: ' + preview }, 
+          { status: 502 }
+        );
       }
 
-      console.log('Extracted image base64, length:', imageBase64.length);
+      console.log('Image extracted, base64 length:', imageBase64.length);
 
       const imageBuffer = Buffer.from(imageBase64, 'base64');
-      console.log('Converted to buffer, size:', imageBuffer.length);
+      console.log('Buffer created, size:', imageBuffer.length);
       
       const timestamp = Date.now();
       const filename = `generated/${userId}_${timestamp}_${type}.png`;
       console.log('Filename:', filename);
+
+      // Free up memory
+      (data as any) = null;
+      (responseText as any) = null;
+      (imageBase64 as any) = null;
 
       const uploadedUrl = await uploadToR2(imageBuffer, filename, 'image/png');
       console.log('Uploaded to R2:', uploadedUrl);
@@ -210,7 +224,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true,
         imageUrl: uploadedUrl,
-        originalUrl: imageDataUrl,
         message: 'Image generated successfully'
       });
     } catch (fetchError) {
@@ -220,9 +233,9 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error('=== Generate API FATAL ERROR ===');
-    console.error('Error name:', (error as Error).name);
-    console.error('Error message:', (error as Error).message);
-    console.error('Error stack:', (error as Error).stack);
+    console.error('Name:', (error as Error).name);
+    console.error('Message:', (error as Error).message);
+    console.error('Stack:', (error as Error).stack?.split('\n').slice(0, 10).join('\n'));
     return NextResponse.json(
       { error: '生成失败: ' + (error as Error).message },
       { status: 500 }
