@@ -129,14 +129,14 @@ export async function POST(req: NextRequest) {
     try {
       data = JSON.parse(responseText);
     } catch (e) {
-      console.error('JSON parse error:', e);
+      console.error('JSON parse error:', e, 'Response preview:', responseText.substring(0, 200));
       return NextResponse.json({ error: 'Invalid JSON response from AI API: ' + responseText.substring(0, 200) }, { status: 502 });
     }
 
     // Extract image data from response
     const message = data.choices?.[0]?.message;
     if (!message) {
-      console.error('No message in response:', JSON.stringify(data, null, 2));
+      console.error('No message in response. Choices length:', data.choices?.length);
       return NextResponse.json({ error: 'No response from AI model' }, { status: 502 });
     }
 
@@ -150,14 +150,17 @@ export async function POST(req: NextRequest) {
     }
 
     if (!imageBase64) {
-      console.error('No image found in response:', JSON.stringify(data, null, 2));
+      let preview = '';
+      if (typeof message.content === 'string') {
+        preview = message.content.substring(0, 200);
+      } else if (Array.isArray(message.content)) {
+        preview = `Array(${message.content.length})`;
+      } else {
+        preview = JSON.stringify(message.content).substring(0, 200);
+      }
+      console.error('No image found in response. Content preview:', preview);
       return NextResponse.json(
-        { 
-          error: 'AI model did not return an image. Response content: ' + 
-            (typeof message.content === 'string' 
-              ? message.content.substring(0, 200) 
-              : JSON.stringify(message.content)) 
-        }, 
+        { error: 'AI model did not return an image. Response preview: ' + preview }, 
         { status: 502 }
       );
     }
