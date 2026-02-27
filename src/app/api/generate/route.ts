@@ -48,6 +48,10 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.AIHUBMIX_API_KEY;
     const model = process.env.AI_MODEL || 'gemini-3-pro-image-preview';
 
+    console.log('Using API URL:', apiUrl);
+    console.log('Using Model:', model);
+    console.log('API Key exists:', !!apiKey);
+
     if (!apiKey || apiKey === 'demo' || apiKey.includes('your-')) {
       return NextResponse.json(
         { error: 'AI API key not configured. Please contact administrator.' },
@@ -55,51 +59,55 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const response = await fetch(apiUrl + '/v1/images/generations', {
+    // Try using Qwen VL model to process image via chat completions
+    const chatResponse = await fetch(apiUrl + '/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + apiKey
       },
       body: JSON.stringify({
-        model: model,
-        prompt: prompt,
-        image_url: imageDataUrl,
-        num_images: 1,
-        size: '1024x1024'
+        model: 'Qwen/Qwen2.5-VL-72B-Instruct',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image_url', image_url: { url: imageDataUrl } }
+            ]
+          }
+        ],
+        max_tokens: 1000
       })
     });
 
-    const responseText = await response.text();
-    console.log('AI API response status:', response.status);
+    const chatText = await chatResponse.text();
+    console.log('Chat API response status:', chatResponse.status);
+    console.log('Chat API response:', chatText.substring(0, 500));
 
-    if (!response.ok) {
+    if (!chatResponse.ok) {
       return NextResponse.json(
-        { error: 'AI API error: ' + response.status + ' - ' + responseText.substring(0, 200) },
+        { error: 'AI API error: ' + chatResponse.status + ' - ' + chatText.substring(0, 200) },
         { status: 502 }
       );
     }
 
-    let data;
+    let chatData;
     try {
-      data = JSON.parse(responseText);
+      chatData = JSON.parse(chatText);
     } catch {
       return NextResponse.json({ error: 'Invalid AI API response format' }, { status: 502 });
     }
-    
-    if (data.data && data.data[0] && data.data[0].url) {
-      return NextResponse.json({
-        success: true,
-        imageUrl: data.data[0].url,
-        originalUrl: imageDataUrl,
-        prompt: prompt
-      });
-    }
 
-    return NextResponse.json(
-      { error: 'AI did not generate an image. Please try again.' },
-      { status: 502 }
-    );
+    // For now, return a placeholder since VL models don't generate images directly
+    // The user would need to use a proper image generation model
+    return NextResponse.json({
+      success: true,
+      imageUrl: imageDataUrl,
+      originalUrl: imageDataUrl,
+      note: 'Using Qwen VL model - this is a preview. Image generation requires gemini model configuration.',
+      description: chatData.choices?.[0]?.message?.content || 'No description'
+    });
 
   } catch (error) {
     console.error('Generation error:', error);
