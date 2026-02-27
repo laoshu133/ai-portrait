@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { uploadToR2, generateFileKey } from '@/lib/r2';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -29,13 +28,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Convert image to buffer
+    // Convert image to base64 for demo (bypass R2 for now)
     const arrayBuffer = await image.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-
-    // Upload original image to R2
-    const originalKey = generateFileKey(image.name, userId);
-    const originalUrl = await uploadToR2(buffer, originalKey, image.type);
+    const base64 = buffer.toString('base64');
+    const mimeType = image.type || 'image/jpeg';
+    
+    // Create a data URL for the image (for demo purposes)
+    const imageDataUrl = `data:${mimeType};base64,${base64}`;
 
     // Generate prompt based on type
     const prompts = {
@@ -57,20 +57,20 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.AIHUBMIX_API_KEY;
     const model = process.env.AI_MODEL || 'gemini-3-pro-image-preview';
 
+    console.log('API Key exists:', !!apiKey);
+    console.log('API URL:', apiUrl);
+    console.log('Model:', model);
+
     if (!apiKey || apiKey === 'demo' || apiKey.includes('your-')) {
-      // Fallback: return original image for demo
+      // Fallback: return the uploaded image as demo
       return NextResponse.json({
         success: true,
-        imageUrl: originalUrl,
-        originalUrl: originalUrl,
+        imageUrl: imageDataUrl,
+        originalUrl: imageDataUrl,
         prompt: prompt,
-        note: 'Demo mode - returning original image'
+        note: 'Demo mode - using uploaded image'
       });
     }
-
-    // Convert image to base64
-    const base64Image = buffer.toString('base64');
-    const mimeType = image.type || 'image/jpeg';
 
     // Call AI API
     const response = await fetch(`${apiUrl}/v1/images/generations`, {
@@ -82,40 +82,45 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: model,
         prompt: prompt,
-        image_url: `data:${mimeType};base64,${base64Image}`,
+        image_url: imageDataUrl,
         num_images: 1,
         size: '1024x1024'
       })
     });
 
+    const responseText = await response.text();
+    console.log('AI API response status:', response.status);
+    console.log('AI API response:', responseText.substring(0, 500));
+
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI API error:', response.status, errorText);
-      // Fallback to original image
+      // Return uploaded image as fallback
       return NextResponse.json({
         success: true,
-        imageUrl: originalUrl,
-        originalUrl: originalUrl,
+        imageUrl: imageDataUrl,
+        originalUrl: imageDataUrl,
         prompt: prompt,
-        note: 'AI generation failed, returning original'
+        note: 'AI API failed, using original image'
       });
     }
 
-    const data = await response.json();
-    
-    if (data.data && data.data[0] && data.data[0].url) {
-      // Download AI-generated image and upload to R2
-      const generatedImageResponse = await fetch(data.data[0].url);
-      const generatedImageBuffer = await generatedImageResponse.arrayBuffer();
-      const generatedBuffer = Buffer.from(generatedImageBuffer);
-      
-      const generatedKey = originalKey.replace('uploads', 'generated');
-      const generatedUrl = await uploadToR2(generatedBuffer, generatedKey, 'image/png');
-
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
       return NextResponse.json({
         success: true,
-        imageUrl: generatedUrl,
-        originalUrl: originalUrl,
+        imageUrl: imageDataUrl,
+        originalUrl: imageDataUrl,
+        prompt: prompt,
+        note: 'Invalid AI response'
+      });
+    }
+    
+    if (data.data && data.data[0] && data.data[0].url) {
+      return NextResponse.json({
+        success: true,
+        imageUrl: data.data[0].url,
+        originalUrl: imageDataUrl,
         prompt: prompt
       });
     }
@@ -123,8 +128,8 @@ export async function POST(req: NextRequest) {
     // Fallback if no generated image in response
     return NextResponse.json({
       success: true,
-      imageUrl: originalUrl,
-      originalUrl: originalUrl,
+      imageUrl: imageDataUrl,
+      originalUrl: imageDataUrl,
       prompt: prompt,
       note: 'No AI image in response'
     });
