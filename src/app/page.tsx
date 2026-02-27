@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { zh, en } from '@/i18n/translations';
-import { UserButton, useUser } from '@clerk/nextjs';
+import { UserButton, useUser, SignInButton, SignedIn, SignedOut } from '@clerk/nextjs';
 import Link from 'next/link';
 
 type PhotoType = 'id' | 'festival' | 'memorial';
@@ -17,12 +17,20 @@ export default function Home() {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const t = lang === 'zh' ? zh : en;
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Check if user is signed in
+    if (!isSignedIn) {
+      setShowLoginPrompt(true);
+      return;
+    }
 
     setIsUploading(true);
     
@@ -52,7 +60,7 @@ export default function Home() {
 
       if (!response.ok) {
         if (response.status === 401) {
-          alert(lang === 'zh' ? '请先登录！' : 'Please sign in first!');
+          setShowLoginPrompt(true);
           return;
         }
         throw new Error('Generation failed');
@@ -77,22 +85,38 @@ export default function Home() {
   };
 
   const selectPhotoType = (type: PhotoType) => {
+    // Check if user is signed in before allowing selection
+    if (!isSignedIn) {
+      setShowLoginPrompt(true);
+      return;
+    }
     setPhotoType(type);
     setStep('upload');
   };
 
-  // Show login prompt if not signed in
-  if (!isSignedIn) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50 flex items-center justify-center">
-        <div className="text-center space-y-6 p-8">
-          <h1 className="text-4xl font-bold text-gray-900">
-            {lang === 'zh' ? '银龄相馆' : 'Silver Portrait'}
-          </h1>
-          <p className="text-xl text-gray-600">
-            {lang === 'zh' ? '请登录后使用 AI 形象照服务' : 'Please sign in to use AI portrait service'}
-          </p>
-          <div className="flex gap-4 justify-center">
+  const handleStartClick = () => {
+    if (!isSignedIn) {
+      setShowLoginPrompt(true);
+      return;
+    }
+    document.getElementById('get-started')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Login prompt modal
+  const LoginPromptModal = () => (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center space-y-6">
+        <div className="text-6xl">🔐</div>
+        <h2 className="text-2xl font-bold">
+          {lang === 'zh' ? '请先登录' : 'Please Sign In'}
+        </h2>
+        <p className="text-gray-600">
+          {lang === 'zh' 
+            ? '登录后可使用 AI 形象照服务，一键生成精美照片' 
+            : 'Sign in to use AI portrait service and generate beautiful photos'}
+        </p>
+        <div className="flex gap-4 justify-center">
+          <SignedOut>
             <Link
               href="/sign-in"
               className="px-6 py-3 bg-orange-600 text-white font-semibold rounded-xl hover:bg-orange-700 transition-colors"
@@ -105,22 +129,23 @@ export default function Home() {
             >
               {lang === 'zh' ? '注册' : 'Sign Up'}
             </Link>
-          </div>
-          <div className="pt-4">
-            <button
-              onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
-              className="text-orange-600 hover:underline"
-            >
-              {lang === 'zh' ? 'English' : '中文'}
-            </button>
-          </div>
+          </SignedOut>
         </div>
+        <button
+          onClick={() => setShowLoginPrompt(false)}
+          className="text-gray-500 hover:text-gray-700"
+        >
+          {lang === 'zh' ? '取消' : 'Cancel'}
+        </button>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50">
+      {/* Login prompt modal */}
+      {showLoginPrompt && <LoginPromptModal />}
+
       {/* Hero Section - High converting hero with clear CTA */}
       <header className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-amber-400/20 to-orange-400/20"></div>
@@ -136,7 +161,17 @@ export default function Home() {
               >
                 {lang === 'zh' ? 'EN' : '中文'}
               </button>
-              <UserButton afterSignOutUrl="/" />
+              <SignedIn>
+                <UserButton afterSignOutUrl="/" />
+              </SignedIn>
+              <SignedOut>
+                <Link
+                  href="/sign-in"
+                  className="px-4 py-2 text-orange-600 hover:text-orange-700 font-medium"
+                >
+                  {lang === 'zh' ? '登录' : 'Sign In'}
+                </Link>
+              </SignedOut>
             </div>
           </div>
         </div>
@@ -144,9 +179,11 @@ export default function Home() {
         {/* Hero Content */}
         <div className="container mx-auto px-4 py-16 text-center relative z-10">
           <div className="max-w-3xl mx-auto">
-            <div className="inline-block px-4 py-1.5 bg-orange-100 text-orange-700 rounded-full text-sm font-medium mb-6">
-              {lang === 'zh' ? '🎉 欢迎回来，' + (user?.firstName || '用户') : `🎉 Welcome back, ${user?.firstName || 'User'}`}
-            </div>
+            <SignedIn>
+              <div className="inline-block px-4 py-1.5 bg-orange-100 text-orange-700 rounded-full text-sm font-medium mb-6">
+                {lang === 'zh' ? '欢迎回来，' + (user?.firstName || '用户') : `Welcome back, ${user?.firstName || 'User'}`}
+              </div>
+            </SignedIn>
             <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
               {lang === 'zh' ? (
                 <>
@@ -166,7 +203,7 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
-                onClick={() => document.getElementById('get-started')?.scrollIntoView({ behavior: 'smooth' })}
+                onClick={handleStartClick}
                 className="px-8 py-4 bg-orange-600 text-white text-lg font-semibold rounded-xl shadow-lg hover:bg-orange-700 hover:shadow-xl transition-all transform hover:scale-105"
               >
                 {lang === 'zh' ? '立即开始 →' : 'Get Started →'}
@@ -408,7 +445,7 @@ export default function Home() {
             {lang === 'zh' ? '完全免费，体验 AI 的神奇魔力' : 'Completely free, experience the magic of AI'}
           </p>
           <button
-            onClick={() => document.getElementById('get-started')?.scrollIntoView({ behavior: 'smooth' })}
+            onClick={handleStartClick}
             className="px-10 py-5 bg-white text-orange-600 text-xl font-bold rounded-xl shadow-lg hover:shadow-2xl transition-all transform hover:scale-105"
           >
             {lang === 'zh' ? '立即开始免费生成' : 'Start Free Generation Now'}
@@ -450,7 +487,7 @@ export default function Home() {
               </h3>
               <p className="text-gray-600">
                 {lang === 'zh' 
-                  ? 'A: 我们使用先进的 AI 模型，确保每张照片都清晰、专业。'
+                  ? 'A: 我们使用先进的 AI 模型，确保每张照片都清晰，专业。'
                   : 'A: We use advanced AI models to ensure every photo is clear and professional.'}
               </p>
             </div>
@@ -487,6 +524,7 @@ export default function Home() {
                 className="hidden"
                 id="file-upload"
                 disabled={isUploading}
+                ref={fileInputRef}
               />
               <label
                 htmlFor="file-upload"
