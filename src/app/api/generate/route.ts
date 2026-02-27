@@ -6,17 +6,17 @@ export const runtime = 'nodejs';
 export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
-  // Require authentication
-  const { userId } = await auth();
-  
-  if (!userId) {
-    return NextResponse.json(
-      { error: 'Unauthorized - Please sign in' },
-      { status: 401 }
-    );
-  }
-
   try {
+    // Require authentication
+    const { userId } = await auth();
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Please sign in', code: 'NO_USER_ID' },
+        { status: 401 }
+      );
+    }
+
     const formData = await req.formData();
     const image = formData.get('image') as File;
     const type = formData.get('type') as string || 'id';
@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Generation error:', error);
     return NextResponse.json(
-      { error: 'Generation failed' },
+      { error: 'Generation failed', details: String(error) },
       { status: 500 }
     );
   }
