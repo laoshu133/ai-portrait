@@ -112,3 +112,11 @@ export async function deleteGenerationRecord(
   await saveUserHistory(userId, filtered);
   return true;
 }
+
+export async function getGenerationRecord(
+  userId: string,
+  recordId: string
+): Promise<GenerationRecord | null> {
+  const history = await getUserHistory(userId);
+  return history.find(r => r.id === recordId) || null;
+}

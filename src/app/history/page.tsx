@@ -66,7 +66,8 @@ export default function HistoryPage() {
   }
 
   function handleRegenerate(record: GenerationRecord) {
-    window.location.href = `/upload?type=${record.type}`;
+    // 传递记录ID和类型，上传页面会自动获取原图并开始生成
+    window.location.href = `/upload?type=${record.type}&regenerate=${record.id}`;
   }
 
   if (!isSignedIn) {

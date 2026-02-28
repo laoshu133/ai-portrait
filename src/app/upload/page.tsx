@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, Suspense } from 'react';
+import { useState, useRef, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { zh, en } from '@/i18n/translations';
 import { UserButton, useUser } from '@clerk/nextjs';
@@ -17,6 +17,7 @@ function UploadContent() {
 
   // Get photo type from URL
   const typeParam = searchParams.get('type') as PhotoType;
+  const regenerateId = searchParams.get('regenerate');
   const effectivePhotoType = typeParam && ['id', 'festival', 'memorial'].includes(typeParam) ? typeParam : photoType;
 
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -36,6 +37,37 @@ function UploadContent() {
       </div>
     );
   }
+
+  // Auto load for regenerate
+  useEffect(() => {
+    if (!regenerateId) return;
+
+    async function loadForRegenerate() {
+      setIsUploading(true);
+      try {
+        const res = await fetch(`/api/history/${regenerateId}`);
+        const data = await res.json();
+        if (!data.success) {
+          throw new Error(data.error || '加载记录失败');
+        }
+        const record = data.record;
+        setUploadedImage(record.originalUrl);
+        // Convert data URL to File object
+        const response = await fetch(record.originalUrl);
+        const blob = await response.blob();
+        const file = new File([blob], `original-${record.id}.jpg`, { type: blob.type });
+        // Start generation
+        await generateImage(file);
+      } catch (err: any) {
+        console.error('Regenerate load error:', err);
+        setError(err.message);
+      } finally {
+        setIsUploading(false);
+      }
+    }
+
+    loadForRegenerate();
+  }, [regenerateId]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

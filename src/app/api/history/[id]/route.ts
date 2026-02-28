@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { deleteGenerationRecord } from '@/lib/history';
+import { deleteGenerationRecord, getGenerationRecord } from '@/lib/history';
 import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 
 const r2Client = new S3Client({
@@ -42,6 +42,41 @@ export async function DELETE(
     console.error('Failed to delete record:', error);
     return NextResponse.json(
       { error: 'Failed to delete record: ' + String(error) },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(
+  req: NextRequest,
+  props: { params: Promise<{ id: string }> }
+) {
+  const params = await props.params;
+  try {
+    const { userId } = await auth();
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const recordId = params.id;
+    const record = await getGenerationRecord(userId, recordId);
+    
+    if (!record) {
+      return NextResponse.json(
+        { error: 'Record not found' },
+        { status: 404 }
+      );
+    }
+    
+    return NextResponse.json({ success: true, record });
+  } catch (error) {
+    console.error('Failed to get record:', error);
+    return NextResponse.json(
+      { error: 'Failed to get record: ' + String(error) },
       { status: 500 }
     );
   }
