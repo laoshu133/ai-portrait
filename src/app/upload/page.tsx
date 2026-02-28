@@ -14,6 +14,11 @@ function UploadContent() {
   const { isSignedIn, user } = useUser();
   const [lang, setLang] = useState<'zh' | 'en'>('zh');
   const [photoType, setPhotoType] = useState<PhotoType>('id');
+
+  // Get photo type from URL
+  const typeParam = searchParams.get('type') as PhotoType;
+  const effectivePhotoType = typeParam && ['id', 'festival', 'memorial'].includes(typeParam) ? typeParam : photoType;
+
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -23,14 +28,10 @@ function UploadContent() {
 
   const t = lang === 'zh' ? zh : en;
 
-  // Get photo type from URL
-  const typeParam = searchParams.get('type') as PhotoType;
-  const effectivePhotoType = typeParam && ['id', 'festival', 'memorial'].includes(typeParam) ? typeParam : photoType;
-
   // Redirect if not signed in
   if (!isSignedIn) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50 flex items-center justify-center">
         <p>{lang === 'zh' ? '正在跳转...' : 'Redirecting...'}</p>
       </div>
     );
@@ -114,7 +115,7 @@ function UploadContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50">
-      {/* Header */}
+      {/* Header - Full Navigation */}
       <header className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
@@ -208,7 +209,7 @@ function UploadContent() {
                       {lang === 'zh' ? '点击选择图片' : 'Click to select image'}
                     </p>
                     <p className="text-sm text-gray-400">
-                      {lang === 'zh' ? '支持 JPG、PNG 格式' : 'Supports JPG, PNG format'}
+                      {lang === 'zh' ? '支持 JPG、PNG 格式，最大 4MB' : 'Supports JPG, PNG, max 4MB'}
                     </p>
                   </div>
                 </label>
@@ -253,12 +254,20 @@ function UploadContent() {
                 {lang === 'zh' ? '生成失败' : 'Generation Failed'}
               </h2>
               <p className="text-gray-600 mb-6">{error}</p>
-              <button
-                onClick={reset}
-                className="px-6 py-3 bg-orange-600 text-white font-semibold rounded-xl hover:bg-orange-700"
-              >
-                {lang === 'zh' ? '重新尝试' : 'Try Again'}
-              </button>
+              <div className="flex gap-4">
+                <button
+                  onClick={reset}
+                  className="flex-1 px-6 py-3 bg-orange-600 text-white font-semibold rounded-xl hover:bg-orange-700"
+                >
+                  {lang === 'zh' ? '重新尝试' : 'Try Again'}
+                </button>
+                <Link
+                  href="/"
+                  className="flex-1 px-6 py-3 bg-white border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50"
+                >
+                  {lang === 'zh' ? '返回首页' : 'Back Home'}
+                </Link>
+              </div>
             </div>
           </div>
         )}
@@ -311,7 +320,7 @@ function UploadContent() {
 export default function UploadPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-amber-50 to-orange-50">
+      <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50 flex items-center justify-center">
         <p>Loading...</p>
       </div>
     }>
