@@ -1,5 +1,4 @@
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const r2Client = new S3Client({
   region: 'auto',
@@ -10,12 +9,16 @@ const r2Client = new S3Client({
   },
 });
 
+export type GenerationStatus = 'success' | 'failed';
+
 export interface GenerationRecord {
   id: string;
   timestamp: number;
   type: 'id' | 'festival' | 'memorial';
   originalUrl: string;
-  generatedUrl: string;
+  generatedUrl: string | null;
+  status: GenerationStatus;
+  error?: string;
   lang: string;
 }
 
@@ -38,7 +41,6 @@ export async function getUserHistory(userId: string): Promise<GenerationRecord[]
     const data = JSON.parse(body);
     return data.records || [];
   } catch (error: any) {
-    // 如果文件不存在，返回空数组
     if (error.name === 'NoSuchKey') {
       return [];
     }
@@ -77,6 +79,23 @@ export async function addGenerationRecord(
   await saveUserHistory(userId, history);
   
   return newRecord;
+}
+
+export async function updateGenerationRecord(
+  userId: string,
+  recordId: string,
+  updates: Partial<GenerationRecord>
+): Promise<boolean> {
+  const history = await getUserHistory(userId);
+  const index = history.findIndex(r => r.id === recordId);
+  
+  if (index === -1) {
+    return false;
+  }
+  
+  history[index] = { ...history[index], ...updates };
+  await saveUserHistory(userId, history);
+  return true;
 }
 
 export async function deleteGenerationRecord(

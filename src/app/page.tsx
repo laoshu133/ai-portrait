@@ -166,7 +166,7 @@ export default function Home() {
                   href="/history"
                   className="px-3 py-2 text-orange-600 hover:text-orange-700 font-medium text-sm"
                 >
-                  {lang === 'zh' ? '我的历史' : 'History'}
+                  {lang === 'zh' ? '生成记录' : 'History'}
                 </Link>
                 <UserButton afterSignOutUrl="/" />
               </SignedIn>
