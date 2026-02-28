@@ -3,7 +3,7 @@
 import { useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { zh, en } from '@/i18n/translations';
-import { useUser } from '@clerk/nextjs';
+import { UserButton, useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 
 type PhotoType = 'id' | 'festival' | 'memorial';
@@ -128,6 +128,13 @@ function UploadContent() {
               >
                 {lang === 'zh' ? 'EN' : '中文'}
               </button>
+              <Link
+                href="/history"
+                className="px-4 py-2 text-orange-600 hover:text-orange-700 font-medium text-sm hidden sm:block"
+              >
+                {lang === 'zh' ? '我的历史' : 'My History'}
+              </Link>
+              <UserButton afterSignOutUrl="/" />
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { uploadToR2 } from '@/lib/r2';
+import { addGenerationRecord } from '@/lib/history';
 
 export const runtime = 'nodejs';
 export const maxDuration = 180;
@@ -195,6 +196,14 @@ export async function POST(req: NextRequest) {
       (imageBase64 as any) = null;
 
       const uploadedUrl = await uploadToR2(imageBuffer, filename, 'image/png');
+      
+      // 添加到用户历史记录
+      await addGenerationRecord(userId, {
+        type: type as any,
+        originalUrl: imageDataUrl,
+        generatedUrl: uploadedUrl,
+        lang: lang
+      });
 
       return NextResponse.json({
         success: true,

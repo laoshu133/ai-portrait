@@ -162,6 +162,12 @@ export default function Home() {
                 {lang === 'zh' ? 'EN' : '中文'}
               </button>
               <SignedIn>
+                <Link
+                  href="/history"
+                  className="px-4 py-2 text-orange-600 hover:text-orange-700 font-medium text-sm hidden sm:block"
+                >
+                  {lang === 'zh' ? '我的历史' : 'My History'}
+                </Link>
                 <UserButton afterSignOutUrl="/" />
               </SignedIn>
               <SignedOut>
