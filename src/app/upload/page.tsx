@@ -217,8 +217,8 @@ function UploadContent() {
           </div>
         </div>
 
-        {/* Upload Area */}
-        {!uploadedImage && !isGenerating && !error && (
+        {/* Upload Area - 只有没有图片且不在生成中时显示 */}
+        {!uploadedImage && !isUploading && !isGenerating && !error && (
           <div className="max-w-xl mx-auto">
             <div className="bg-white rounded-2xl shadow-lg p-8">
               <h2 className="text-xl font-semibold text-center mb-6">
