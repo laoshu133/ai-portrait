@@ -234,11 +234,13 @@ function UploadContent() {
                   <p className="text-sm text-gray-500 mb-2">
                     {lang === 'zh' ? '原始照片:' : 'Original:'}
                   </p>
-                  <img 
-                    src={uploadedImage} 
-                    alt="Original" 
-                    className="max-w-xs mx-auto rounded-lg shadow"
-                  />
+                  <div className="max-w-xs mx-auto">
+                    <img 
+                      src={uploadedImage} 
+                      alt="Original" 
+                      className="w-full rounded-lg shadow object-contain"
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -280,11 +282,13 @@ function UploadContent() {
                 {lang === 'zh' ? '生成完成！' : 'Generation Complete!'}
               </h2>
               
-              <img
-                src={generatedImage}
-                alt="Generated"
-                className="w-full rounded-xl shadow-lg mb-6"
-              />
+              <div className="w-full">
+                <img
+                  src={generatedImage}
+                  alt="Generated"
+                  className="w-full rounded-xl shadow-lg mb-6 object-contain"
+                />
+              </div>
                 
               <div className="flex flex-col gap-3">
                 <div className="flex gap-4">

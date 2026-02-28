@@ -173,7 +173,7 @@ export default function HistoryPage() {
                         <img
                           src={record.generatedUrl}
                           alt="Generated image"
-                          className="absolute top-0 left-0 w-full h-full object-contain"
+                          className="absolute top-0 left-0 w-full h-full object-contain max-w-full max-h-full"
                         />
                       </div>
                     ) : (

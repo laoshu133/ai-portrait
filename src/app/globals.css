@@ -12,10 +12,11 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* 强制保持浅色主题，因为设计是针对浅色优化的 */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #ffffff;
+    --foreground: #171717;
   }
 }
 
