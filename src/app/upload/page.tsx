@@ -277,20 +277,28 @@ function UploadContent() {
                 className="w-full rounded-xl shadow-lg mb-6"
               />
                 
-              <div className="flex gap-4">
-                <a
-                  href={generatedImage}
-                  download={`portrait-${Date.now()}.jpg`}
-                  className="flex-1 bg-orange-600 text-white text-center py-3 rounded-xl font-semibold hover:bg-orange-700"
+              <div className="flex flex-col gap-3">
+                <div className="flex gap-4">
+                  <a
+                    href={generatedImage}
+                    download={`portrait-${Date.now()}.jpg`}
+                    className="flex-1 bg-orange-600 text-white text-center py-3 rounded-xl font-semibold hover:bg-orange-700"
+                  >
+                    {lang === 'zh' ? '下载照片' : 'Download'}
+                  </a>
+                  <button
+                    onClick={reset}
+                    className="flex-1 bg-gray-100 text-gray-700 text-center py-3 rounded-xl font-semibold hover:bg-gray-200"
+                  >
+                    {lang === 'zh' ? '重新生成' : 'Generate Another'}
+                  </button>
+                </div>
+                <Link
+                  href="/"
+                  className="w-full bg-white border border-gray-200 text-gray-700 text-center py-3 rounded-xl font-semibold hover:bg-gray-50"
                 >
-                  {lang === 'zh' ? '下载照片' : 'Download'}
-                </a>
-                <button
-                  onClick={reset}
-                  className="flex-1 bg-gray-100 text-gray-700 text-center py-3 rounded-xl font-semibold hover:bg-gray-200"
-                >
-                  {lang === 'zh' ? '重新生成' : 'Generate Another'}
-                </button>
+                  {lang === 'zh' ? '返回首页' : 'Back to Home'}
+                </Link>
               </div>
             </div>
           </div>

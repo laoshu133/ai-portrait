@@ -164,9 +164,9 @@ export default function Home() {
               <SignedIn>
                 <Link
                   href="/history"
-                  className="px-4 py-2 text-orange-600 hover:text-orange-700 font-medium text-sm hidden sm:block"
+                  className="px-3 py-2 text-orange-600 hover:text-orange-700 font-medium text-sm"
                 >
-                  {lang === 'zh' ? '我的历史' : 'My History'}
+                  {lang === 'zh' ? '我的历史' : 'History'}
                 </Link>
                 <UserButton afterSignOutUrl="/" />
               </SignedIn>
