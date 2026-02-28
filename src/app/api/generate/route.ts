@@ -24,7 +24,25 @@ function log(message: string) {
 }
 
 function extractBase64ImageFromMessage(message: any): string | null {
-  if (!message?.content) return null;
+  // Check for aihubmix format: multi_mod_content with inline_data
+  if (Array.isArray(message.multi_mod_content)) {
+    log(`Found multi_mod_content with ${message.multi_mod_content.length} parts`);
+    for (const part of message.multi_mod_content) {
+      if (part?.inline_data?.data) {
+        log(`Found image in multi_mod_content.inline_data.data, length: ${part.inline_data.data.length}`);
+        return part.inline_data.data;
+      }
+      if (part?.data && part?.mime_type?.startsWith('image/')) {
+        log(`Found image in multi_mod_content.part.data, length: ${part.data.length}`);
+        return part.data;
+      }
+    }
+  }
+
+  if (!message?.content) {
+    log('message.content is empty');
+    return null;
+  }
 
   if (Array.isArray(message.content)) {
     for (const part of message.content) {
