@@ -612,8 +612,11 @@ function UploadContent() {
 }
 
 export default function UploadPage() {
-  // Detect language for suspense fallback
-  const detectedLang = typeof navigator !== 'undefined' && navigator.language.split('-')[0] === 'zh' ? 'zh' : 'en';
+  // Detect language for suspense fallback - safe for server rendering
+  const getDetectedLang = () => {
+    if (typeof navigator === 'undefined') return 'zh';
+    return navigator.language.split('-')[0] === 'zh' ? 'zh' : 'en';
+  };
   
   return (
     <Suspense fallback={
@@ -622,7 +625,7 @@ export default function UploadPage() {
           <div className="max-w-sm mx-auto bg-white rounded-2xl shadow-lg p-12 text-center">
             <div className="text-6xl animate-pulse mb-6">⌛</div>
             <p className="text-xl text-gray-600">
-              {detectedLang === 'zh' ? '加载中...' : 'Loading...'}
+              {getDetectedLang() === 'zh' ? '加载中...' : 'Loading...'}
             </p>
           </div>
         </div>
