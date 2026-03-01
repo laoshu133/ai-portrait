@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { zh, en } from '@/i18n/translations';
 import { UserButton, useUser, SignInButton, SignedIn, SignedOut } from '@clerk/nextjs';
 import Link from 'next/link';
@@ -18,9 +18,28 @@ export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [remainingQuota, setRemainingQuota] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const t = lang === 'zh' ? zh : en;
+
+  // Fetch remaining quota for signed in users
+  useEffect(() => {
+    if (!isSignedIn) return;
+    
+    async function fetchQuota() {
+      try {
+        const res = await fetch('/api/quota');
+        const data = await res.json();
+        if (res.ok) {
+          setRemainingQuota(data.remainingQuota);
+        }
+      } catch (err) {
+        console.error('Failed to fetch quota', err);
+      }
+    }
+    fetchQuota();
+  }, [isSignedIn]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -154,7 +173,7 @@ export default function Home() {
             <div className="text-3xl font-bold text-orange-900">
               {lang === 'zh' ? '银龄相馆' : 'Silver Portrait'}
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
                 className="text-sm text-gray-600 hover:text-orange-600"
@@ -162,6 +181,14 @@ export default function Home() {
                 {lang === 'zh' ? 'EN' : '中文'}
               </button>
               <SignedIn>
+                {remainingQuota !== null && (
+                  <Link
+                    href="/quota"
+                    className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium hover:bg-green-200"
+                  >
+                    🎫 {remainingQuota} {lang === 'zh' ? '额度' : 'quota'}
+                  </Link>
+                )}
                 <Link
                   href="/history"
                   className="px-3 py-2 text-orange-600 hover:text-orange-700 font-medium text-sm"

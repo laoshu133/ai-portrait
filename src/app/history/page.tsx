@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useUser } from '@clerk/nextjs';
+import { useUser, UserButton } from '@clerk/nextjs';
 import { GenerationRecord, GenerationStatus } from '@/lib/history';
 import './history.css';
 
@@ -23,6 +23,29 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lang, setLang] = useState<'zh' | 'en'>('zh');
+  const [remainingQuota, setRemainingQuota] = useState<number | null>(null);
+
+  // Detect language and fetch quota
+  useEffect(() => {
+    const browserLang = navigator.language.split('-')[0];
+    setLang(browserLang === 'zh' ? 'zh' : 'en');
+    
+    if (!isSignedIn) return;
+    
+    async function fetchQuota() {
+      try {
+        const res = await fetch('/api/quota');
+        const data = await res.json();
+        if (res.ok) {
+          setRemainingQuota(data.remainingQuota);
+        }
+      } catch (err) {
+        console.error('Failed to fetch quota', err);
+      }
+    }
+    fetchQuota();
+  }, [isSignedIn]);
 
   useEffect(() => {
     if (!isSignedIn) return;
@@ -125,12 +148,27 @@ export default function HistoryPage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <Link href="/" className="text-2xl font-bold text-orange-900">
-              银龄相馆
+              {lang === 'zh' ? '银龄相馆' : 'Silver Portrait'}
             </Link>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
+                className="text-sm text-gray-600 hover:text-orange-600"
+              >
+                {lang === 'zh' ? 'EN' : '中文'}
+              </button>
+              {remainingQuota !== null && (
+                <Link
+                  href="/quota"
+                  className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium hover:bg-green-200"
+                >
+                  🎫 {remainingQuota} {lang === 'zh' ? '额度' : 'quota'}
+                </Link>
+              )}
               <Link href="/" className="px-3 py-2 text-orange-600 hover:text-orange-700 font-medium text-sm">
-                ← 首页
+                {lang === 'zh' ? '← 首页' : '← Home'}
               </Link>
+              <UserButton afterSignOutUrl="/" />
             </div>
           </div>
         </div>
@@ -140,22 +178,26 @@ export default function HistoryPage() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10">
             <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              我的生成记录
+              {lang === 'zh' ? '我的生成记录' : 'Generation History'}
             </h1>
             <p className="text-lg text-gray-600">
-              查看和管理您之前生成的所有照片，失败的记录可以重新生成
+              {lang === 'zh' 
+                ? '查看和管理您之前生成的所有照片，失败的记录可以重新生成'
+                : 'View and manage all your previous generations, failed records can be regenerated'}
             </p>
           </div>
 
           {history.length === 0 ? (
             <div className="bg-white rounded-3xl p-12 shadow-lg text-center">
               <div className="text-6xl mb-6">📷</div>
-              <p className="text-xl text-gray-600 mb-8">还没有生成记录</p>
+              <p className="text-xl text-gray-600 mb-8">
+                {lang === 'zh' ? '还没有生成记录' : 'No generation history yet'}
+              </p>
               <Link
                 href="/upload"
                 className="inline-block px-8 py-4 bg-orange-600 text-white text-lg font-semibold rounded-xl shadow-lg hover:bg-orange-700 transition-all"
               >
-                开始生成第一张照片
+                {lang === 'zh' ? '开始生成第一张照片' : 'Generate Your First Photo'}
               </Link>
             </div>
           ) : (

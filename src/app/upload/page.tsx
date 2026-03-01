@@ -25,9 +25,27 @@ function UploadContent() {
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [remainingQuota, setRemainingQuota] = useState<number | null>(null);
+  const [showQuotaModal, setShowQuotaModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const t = lang === 'zh' ? zh : en;
+
+  // Fetch remaining quota on mount
+  useEffect(() => {
+    async function fetchQuota() {
+      try {
+        const res = await fetch('/api/quota');
+        const data = await res.json();
+        if (res.ok) {
+          setRemainingQuota(data.remainingQuota);
+        }
+      } catch (err) {
+        console.error('Failed to fetch quota', err);
+      }
+    }
+    fetchQuota();
+  }, []);
 
   // Redirect if not signed in
   if (!isSignedIn) {
@@ -114,11 +132,19 @@ function UploadContent() {
           router.push('/sign-in');
           return;
         }
+        if (response.status === 402 && data.error === 'INSUFFICIENT_QUOTA') {
+          setShowQuotaModal(true);
+          return;
+        }
         throw new Error(data.error || `Generation failed: ${response.status}`);
       }
 
       if (data.imageUrl) {
         setGeneratedImage(data.imageUrl);
+        // Update remaining quota after successful generation
+        if (data.remainingQuota !== undefined) {
+          setRemainingQuota(data.remainingQuota);
+        }
       } else {
         throw new Error(data.error || 'No image returned');
       }
@@ -161,6 +187,14 @@ function UploadContent() {
               >
                 {lang === 'zh' ? 'EN' : '中文'}
               </button>
+              {remainingQuota !== null && (
+                <Link
+                  href="/quota"
+                  className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium hover:bg-green-200"
+                >
+                  🎫 {remainingQuota} {lang === 'zh' ? '额度' : 'quota'}
+                </Link>
+              )}
               <Link
                 href="/history"
                 className="px-3 py-2 text-orange-600 hover:text-orange-700 font-medium text-sm"
@@ -349,6 +383,37 @@ function UploadContent() {
           </div>
         )}
       </main>
+
+      {/* Insufficient Quota Modal */}
+      {showQuotaModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center space-y-6">
+            <div className="text-6xl">🎫</div>
+            <h2 className="text-2xl font-bold">
+              {lang === 'zh' ? '额度不足' : 'Insufficient Quota'}
+            </h2>
+            <p className="text-gray-600">
+              {lang === 'zh' 
+                ? '您当前没有可用的生成额度，请购买额度包后继续生成。'
+                : 'You don\'t have any remaining generation quota. Please purchase a quota pack to continue.'}
+            </p>
+            <div className="space-y-3">
+              <Link
+                href="/quota"
+                className="block w-full px-6 py-3 bg-orange-600 text-white font-semibold rounded-xl hover:bg-orange-700 transition-colors"
+              >
+                {lang === 'zh' ? '购买额度' : 'Buy Quota'}
+              </Link>
+              <button
+                onClick={() => setShowQuotaModal(false)}
+                className="block w-full px-6 py-3 bg-white text-gray-700 font-semibold rounded-xl border border-gray-300 hover:bg-gray-50 transition-colors"
+              >
+                {lang === 'zh' ? '取消' : 'Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

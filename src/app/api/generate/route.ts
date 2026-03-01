@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { uploadToR2 } from '@/lib/r2';
 import { addGenerationRecord, updateGenerationRecord } from '@/lib/history';
+import { getUserQuota, deductQuota, hasEnoughQuota } from '@/lib/quota';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -88,6 +89,17 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
+
+    // Check user quota before proceeding
+    const hasQuota = await hasEnoughQuota(userId);
+    if (!hasQuota) {
+      log(`User ${userId} has insufficient quota`);
+      return NextResponse.json(
+        { error: 'INSUFFICIENT_QUOTA', message: '额度不足，请购买更多生成额度' },
+        { status: 402 }
+      );
+    }
+    log(`User ${userId} has enough quota, proceeding...`);
 
     const formData = await req.formData();
     const image = formData.get('image') as File;
@@ -289,8 +301,20 @@ export async function POST(req: NextRequest) {
       });
       log('Updated history record status to success');
 
+      // Deduct 1 quota after successful generation
+      const deductResult = await deductQuota(userId);
+      if (deductResult.success) {
+        log(`Deducted 1 quota, remaining: ${deductResult.remaining}`);
+      } else {
+        log(`Quota deduction failed, but generation succeeded. remaining: ${deductResult.remaining}`);
+      }
+
       log('=== Generation completed successfully ===');
-      return NextResponse.json({ success: true, imageUrl: uploadedUrl });
+      return NextResponse.json({ 
+        success: true, 
+        imageUrl: uploadedUrl,
+        remainingQuota: deductResult.remaining
+      });
     } catch (err) {
       clearTimeout(timeoutId);
       const errMsg = err instanceof Error ? err.message : String(err);
