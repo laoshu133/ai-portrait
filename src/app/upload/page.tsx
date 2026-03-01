@@ -439,7 +439,7 @@ function UploadContent() {
                           : 'bg-gray-50 border border-gray-200 hover:border-orange-300'
                       }`}
                       style={backgroundColor === color.key ? {
-                        borderColor: color.key,
+                        borderColor: color.key === 'white' ? '#666' : color.key,
                         backgroundColor: color.key + '33',
                       } : {}}
                     >
