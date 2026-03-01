@@ -401,12 +401,12 @@ function UploadContent() {
                       onClick={() => setBackgroundColor(color.key)}
                       className={`p-3 rounded-lg text-sm transition-all ${
                         backgroundColor === color.key
-                          ? `bg-${color.key}-100 border-2 border-${color.key}-500`
+                          ? 'border-2'
                           : 'bg-gray-50 border border-gray-200 hover:border-orange-300'
                       }`}
                       style={backgroundColor === color.key ? {
                         borderColor: color.key,
-                        backgroundColor: `${color.key}100`
+                        backgroundColor: color.key + '33', // 20% opacity
                       } : {}}
                     >
                       <div className="flex items-center gap-2 justify-center">
