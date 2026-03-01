@@ -40,11 +40,21 @@ function UploadContent() {
   const { isSignedIn, user } = useUser();
   const [lang, setLang] = useState<'zh' | 'en'>('zh');
   const [photoType, setPhotoType] = useState<PhotoType>('id');
+  const [regenerateId, setRegenerateId] = useState<string | null>(null);
+  const [effectivePhotoType, setEffectivePhotoType] = useState<PhotoType>('id');
 
-  // Get photo type from URL
-  const typeParam = searchParams.get('type') as PhotoType;
-  const regenerateId = searchParams.get('regenerate');
-  const effectivePhotoType = typeParam && ['id', 'festival', 'memorial'].includes(typeParam) ? typeParam : photoType;
+  // Get photo type and regenerate id from URL on client side only
+  useEffect(() => {
+    const typeParam = searchParams.get('type') as PhotoType;
+    const regenerate = searchParams.get('regenerate');
+    setRegenerateId(regenerate);
+    if (typeParam && ['id', 'festival', 'memorial'].includes(typeParam)) {
+      setEffectivePhotoType(typeParam);
+      setPhotoType(typeParam);
+    } else {
+      setEffectivePhotoType(photoType);
+    }
+  }, [searchParams]);
 
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
@@ -117,7 +127,13 @@ function UploadContent() {
   }, [regenerateId]);
 
   // Compress image before upload, max long edge 1920px
+  // Safe for SSR - only executes on client side
   const compressImage = async (file: File): Promise<File> => {
+    // Only run on client
+    if (typeof document === 'undefined' || typeof Image === 'undefined') {
+      return file;
+    }
+    
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
