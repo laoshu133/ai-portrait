@@ -13,6 +13,7 @@ const typeLabels: Record<string, string> = {
 };
 
 const statusLabels: Record<GenerationStatus, { label: string; className: string }> = {
+  processing: { label: '生成中', className: 'bg-yellow-100 text-yellow-700 animate-pulse' },
   success: { label: '成功', className: 'bg-green-100 text-green-700' },
   failed: { label: '失败', className: 'bg-red-100 text-red-700' },
 };
@@ -270,15 +271,23 @@ export default function HistoryPage() {
                       </div>
                       
                       {record.generatedUrl && (
-                        <a
-                          href={record.generatedUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          download
-                          className="block w-full text-center px-3 py-2 border border-gray-200 text-orange-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
-                        >
-                          下载原图 ↗
-                        </a>
+                        <div className="grid grid-cols-2 gap-2">
+                          <a
+                            href={record.generatedUrl}
+                            download
+                            className="px-3 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 transition-colors text-center"
+                          >
+                            下载
+                          </a>
+                          <a
+                            href={record.originalUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-2 border border-gray-200 text-gray-500 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors text-center"
+                          >
+                            查看原图
+                          </a>
+                        </div>
                       )}
                     </div>
                   </div>

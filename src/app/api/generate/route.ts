@@ -201,8 +201,10 @@ export async function POST(req: NextRequest) {
       type: type as any,
       originalUrl: imageDataUrl,
       generatedUrl: null,
-      status: 'failed',
-      lang: lang
+      status: 'processing',
+      lang: lang,
+      purpose: type === 'id' ? purpose : undefined,
+      background: type === 'id' ? background : undefined,
     });
     log(`Created history record: id=${record.id}`);
 
@@ -349,7 +351,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ 
         success: true, 
         imageUrl: uploadedUrl,
-        remainingQuota: deductResult.remaining
+        remainingQuota: deductResult.remaining,
+        recordId: record.id
       });
     } catch (err) {
       clearTimeout(timeoutId);

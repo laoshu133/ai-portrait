@@ -9,7 +9,7 @@ const r2Client = new S3Client({
   },
 });
 
-export type GenerationStatus = 'success' | 'failed';
+export type GenerationStatus = 'processing' | 'success' | 'failed';
 
 export interface GenerationRecord {
   id: string;
@@ -20,6 +20,8 @@ export interface GenerationRecord {
   status: GenerationStatus;
   error?: string;
   lang: string;
+  purpose?: string;
+  background?: string;
 }
 
 export async function getUserHistory(userId: string): Promise<GenerationRecord[]> {

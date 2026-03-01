@@ -206,8 +206,9 @@ function UploadContent() {
         throw new Error(data.error || `Generation failed: ${response.status}`);
       }
 
-      if (data.imageUrl) {
-        setGeneratedImage(data.imageUrl);
+      if (data.imageUrl && data.recordId) {
+        // Redirect to detail page after successful generation
+        router.push(`/history/${data.recordId}`);
         if (data.remainingQuota !== undefined) {
           setRemainingQuota(data.remainingQuota);
         }
