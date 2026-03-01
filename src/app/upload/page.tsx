@@ -612,21 +612,15 @@ function UploadContent() {
 }
 
 export default function UploadPage() {
-  // Detect language for suspense fallback - safe for server rendering
-  const getDetectedLang = () => {
-    if (typeof navigator === 'undefined') return 'zh';
-    return navigator.language.split('-')[0] === 'zh' ? 'zh' : 'en';
-  };
-  
+  // Use static fallback text to avoid any server-side navigator access issues
+  // It's just a 1-2 second loading screen, language doesn't matter much
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50">
         <div className="container mx-auto px-4 py-16">
           <div className="max-w-sm mx-auto bg-white rounded-2xl shadow-lg p-12 text-center">
             <div className="text-6xl animate-pulse mb-6">⌛</div>
-            <p className="text-xl text-gray-600">
-              {getDetectedLang() === 'zh' ? '加载中...' : 'Loading...'}
-            </p>
+            <p className="text-xl text-gray-600">加载中...</p>
           </div>
         </div>
       </div>
