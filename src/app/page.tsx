@@ -588,10 +588,14 @@ export default function Home() {
       {step === 'generating' && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl text-center space-y-6">
-            <div className="text-8xl animate-pulse">🎨</div>
+            <div className="text-6xl animate-pulse">🎨</div>
             <h2 className="text-3xl font-bold">{t.generating}</h2>
             <p className="text-xl text-gray-600">{t.generatingDesc}</p>
-            
+            <div className="text-sm text-orange-600 bg-orange-50 p-3 rounded-xl">
+              {lang === 'zh' 
+                ? '🔔 您可以关闭此页面，结果会自动保存到「生成记录」' 
+                : '🔔 You can close this page, the result will be saved to "Generation History"'}
+            </div>
             {uploadedImage && (
               <div className="mt-6">
                 <p className="text-lg mb-2">{lang === 'zh' ? '原始照片:' : 'Original Photo:'}</p>

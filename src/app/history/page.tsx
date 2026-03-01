@@ -117,8 +117,11 @@ export default function HistoryPage() {
     return (
       <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50">
         <div className="container mx-auto px-4 py-16">
-          <div className="text-center text-gray-600">
-            <p className="text-xl">加载中...</p>
+          <div className="max-w-sm mx-auto bg-white rounded-2xl shadow-lg p-12 text-center">
+            <div className="text-6xl animate-pulse mb-6">⌛</div>
+            <p className="text-xl text-gray-600">
+              {lang === 'zh' ? '加载中...' : 'Loading...'}
+            </p>
           </div>
         </div>
       </div>
