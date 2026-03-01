@@ -320,6 +320,14 @@ export default function QuotaPage() {
       {/* Footer */}
       <footer className="py-8 bg-gray-900 text-gray-400 text-center">
         <p>© 2026 {lang === 'zh' ? '银龄相馆' : 'Silver Portrait Studio'}</p>
+        <div className="mt-2 space-x-4">
+          <Link href="/privacy" className="hover:text-white transition-colors">
+            {lang === 'zh' ? '隐私政策' : 'Privacy Policy'}
+          </Link>
+          <Link href="/terms" className="hover:text-white transition-colors">
+            {lang === 'zh' ? '服务条款' : 'Terms of Service'}
+          </Link>
+        </div>
       </footer>
     </div>
   );
