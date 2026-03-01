@@ -87,6 +87,57 @@ function UploadContent() {
     loadForRegenerate();
   }, [regenerateId]);
 
+  // Compress image before upload, max long edge 1920px
+  const compressImage = async (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
+        
+        // Resize if long edge exceeds 1920px
+        if (width > height && width > 1920) {
+          height = Math.round((height * 1920) / width);
+          width = 1920;
+        } else if (height > width && height > 1920) {
+          width = Math.round((width * 1920) / height);
+          height = 1920;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+        
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error('Failed to compress image'));
+              return;
+            }
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            console.log(`Compressed: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
+            resolve(compressedFile);
+          },
+          'image/jpeg',
+          0.85 // Quality
+        );
+      };
+      img.onerror = () => {
+        reject(new Error('Failed to load image'));
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -94,13 +145,24 @@ function UploadContent() {
     setIsUploading(true);
     setError(null);
     
-    // Create preview URL
-    const previewUrl = URL.createObjectURL(file);
-    setUploadedImage(previewUrl);
-    
-    // Start generation
-    await generateImage(file);
-    setIsUploading(false);
+    try {
+      // Compress image before upload
+      const compressedFile = await compressImage(file);
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(compressedFile);
+      setUploadedImage(previewUrl);
+      
+      // Start generation
+      await generateImage(compressedFile);
+    } catch (err) {
+      console.error('Compression error:', err);
+      // Fallback to original file if compression fails
+      const previewUrl = URL.createObjectURL(file);
+      setUploadedImage(previewUrl);
+      await generateImage(file);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const generateImage = async (file: File) => {
@@ -113,10 +175,17 @@ function UploadContent() {
       formData.append('type', effectivePhotoType);
       formData.append('lang', lang);
 
+      // Set timeout: 3 minutes (180 seconds)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 180000);
+
       const response = await fetch('/api/generate', {
         method: 'POST',
         body: formData,
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       let data;
       const contentType = response.headers.get('content-type');
@@ -150,7 +219,11 @@ function UploadContent() {
       }
     } catch (err: any) {
       console.error('Generation error:', err);
-      setError(err.message || 'Generation failed');
+      if (err.name === 'AbortError') {
+        setError(lang === 'zh' ? '生成超时，请重试' : 'Generation timed out, please try again');
+      } else {
+        setError(err.message || 'Generation failed');
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -293,9 +366,16 @@ function UploadContent() {
               <h2 className="text-2xl font-bold mb-4">
                 {lang === 'zh' ? '正在生成...' : 'Generating...'}
               </h2>
-              <p className="text-gray-600">
-                {lang === 'zh' ? 'AI 正在处理您的照片，请稍候' : 'AI is processing your photo, please wait'}
-              </p>
+              <div className="text-gray-600 space-y-3">
+                <p>
+                  {lang === 'zh' ? 'AI 正在处理您的照片，这大约需要 30-60 秒' : 'AI is processing your photo, this takes about 30-60 seconds'}
+                </p>
+                <p className="text-sm text-orange-600 bg-orange-50 p-3 rounded-xl">
+                  {lang === 'zh' 
+                    ? '🔔 您可以关闭此页面，处理完成后结果会自动保存到「生成记录」，稍后前往查看即可' 
+                    : '🔔 You can close this page. The result will be automatically saved to "Generation History", check it later'}
+                </p>
+              </div>
               {uploadedImage && (
                 <div className="mt-6">
                   <p className="text-sm text-gray-500 mb-2">
@@ -415,6 +495,19 @@ function UploadContent() {
           </div>
         </div>
       )}
+
+      {/* Footer */}
+      <footer className="py-6 bg-gray-900 text-gray-400 text-center">
+        <p>© 2026 {lang === 'zh' ? '银龄相馆' : 'Silver Portrait Studio'}</p>
+        <div className="mt-2 space-x-4">
+          <Link href="/privacy" className="hover:text-white transition-colors">
+            {lang === 'zh' ? '隐私政策' : 'Privacy Policy'}
+          </Link>
+          <Link href="/terms" className="hover:text-white transition-colors">
+            {lang === 'zh' ? '服务条款' : 'Terms of Service'}
+          </Link>
+        </div>
+      </footer>
     </div>
   );
 }
