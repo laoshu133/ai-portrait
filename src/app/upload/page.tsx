@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, Suspense, useEffect } from 'react';
+import { useState, useRef, Suspense, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { zh, en } from '@/i18n/translations';
 import { UserButton, useUser } from '@clerk/nextjs';
@@ -43,19 +43,6 @@ function UploadContent() {
   const [regenerateId, setRegenerateId] = useState<string | null>(null);
   const [effectivePhotoType, setEffectivePhotoType] = useState<PhotoType>('id');
 
-  // Get photo type and regenerate id from URL on client side only
-  useEffect(() => {
-    const typeParam = searchParams.get('type') as PhotoType;
-    const regenerate = searchParams.get('regenerate');
-    setRegenerateId(regenerate);
-    if (typeParam && ['id', 'festival', 'memorial'].includes(typeParam)) {
-      setEffectivePhotoType(typeParam);
-      setPhotoType(typeParam);
-    } else {
-      setEffectivePhotoType(photoType);
-    }
-  }, [searchParams]);
-
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -69,6 +56,25 @@ function UploadContent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const t = lang === 'zh' ? zh : en;
+
+  // Get URL params on client side only
+  useEffect(() => {
+    try {
+      const typeParam = searchParams.get('type') as PhotoType;
+      const regenerate = searchParams.get('regenerate');
+      setRegenerateId(regenerate);
+      
+      if (typeParam && ['id', 'festival', 'memorial'].includes(typeParam)) {
+        setEffectivePhotoType(typeParam);
+        setPhotoType(typeParam);
+      } else {
+        setEffectivePhotoType(photoType);
+      }
+    } catch (err) {
+      console.error('Error parsing URL params:', err);
+      setEffectivePhotoType('id');
+    }
+  }, [searchParams]);
 
   // Fetch remaining quota on mount
   useEffect(() => {
@@ -86,131 +92,73 @@ function UploadContent() {
     fetchQuota();
   }, []);
 
-  // Redirect if not signed in
-  if (!isSignedIn) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50 flex items-center justify-center">
-        <p>{lang === 'zh' ? '正在跳转...' : 'Redirecting...'}</p>
-      </div>
-    );
-  }
-
-  // Auto load for regenerate
-  useEffect(() => {
-    if (!regenerateId) return;
-
-    async function loadForRegenerate() {
-      setIsUploading(true);
-      try {
-        const res = await fetch(`/api/history/${regenerateId}`);
-        const data = await res.json();
-        if (!data.success) {
-          throw new Error(data.error || '加载记录失败');
-        }
-        const record = data.record;
-        setUploadedImage(record.originalUrl);
-        // Convert data URL to File object
-        const response = await fetch(record.originalUrl);
-        const blob = await response.blob();
-        const file = new File([blob], `original-${record.id}.jpg`, { type: blob.type });
-        // Start generation
-        await generateImage(file);
-      } catch (err: any) {
-        console.error('Regenerate load error:', err);
-        setError(err.message);
-      } finally {
-        setIsUploading(false);
-      }
-    }
-
-    loadForRegenerate();
-  }, [regenerateId]);
-
-  // Compress image before upload, max long edge 1920px
-  // Safe for SSR - only executes on client side
-  const compressImage = async (file: File): Promise<File> => {
-    // Only run on client
-    if (typeof document === 'undefined' || typeof Image === 'undefined') {
+  // Compress image before upload - safe for any environment
+  const compressImage = useCallback(async (file: File): Promise<File> => {
+    // Only run compression on client side
+    if (typeof document === 'undefined' || typeof window === 'undefined') {
       return file;
     }
-    
+
     return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let { width, height } = img;
-        
-        // Resize if long edge exceeds 1920px
-        if (width > height && width > 1920) {
-          height = Math.round((height * 1920) / width);
-          width = 1920;
-        } else if (height > width && height > 1920) {
-          width = Math.round((width * 1920) / height);
-          height = 1920;
-        }
-        
-        canvas.width = width;
-        canvas.height = height;
-        
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Failed to get canvas context'));
-          return;
-        }
-        
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              reject(new Error('Failed to compress image'));
+      try {
+        const img = new (window as any).Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            let { width, height } = img;
+            
+            // Resize if long edge exceeds 1920px
+            if (width > height && width > 1920) {
+              height = Math.round((height * 1920) / width);
+              width = 1920;
+            } else if (height > width && height > 1920) {
+              width = Math.round((width * 1920) / height);
+              height = 1920;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              reject(new Error('Failed to get canvas context'));
               return;
             }
-            const compressedFile = new File([blob], file.name, {
-              type: 'image/jpeg',
-              lastModified: Date.now(),
-            });
-            console.log(`Compressed: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
-            resolve(compressedFile);
-          },
-          'image/jpeg',
-          0.85 // Quality
-        );
-      };
-      img.onerror = () => {
-        reject(new Error('Failed to load image'));
-      };
-      img.src = URL.createObjectURL(file);
+            
+            ctx.drawImage(img, 0, 0, width, height);
+            canvas.toBlob(
+              (blob) => {
+                if (!blob) {
+                  reject(new Error('Failed to compress image'));
+                  return;
+                }
+                const compressedFile = new File([blob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                console.log(`Compressed: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
+                resolve(compressedFile);
+              },
+              'image/jpeg',
+              0.85
+            );
+          } catch (err) {
+            console.error('Error during compression:', err);
+            reject(err);
+          }
+        };
+        img.onerror = () => {
+          reject(new Error('Failed to load image'));
+        };
+        img.src = URL.createObjectURL(file);
+      } catch (err) {
+        console.error('Error creating image:', err);
+        reject(err);
+      }
     });
-  };
+  }, []);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    setError(null);
-    
-    try {
-      // Compress image before upload
-      const compressedFile = await compressImage(file);
-      // Create preview URL
-      const previewUrl = URL.createObjectURL(compressedFile);
-      setUploadedImage(previewUrl);
-      
-      // Start generation
-      await generateImage(compressedFile);
-    } catch (err) {
-      console.error('Compression error:', err);
-      // Fallback to original file if compression fails
-      const previewUrl = URL.createObjectURL(file);
-      setUploadedImage(previewUrl);
-      await generateImage(file);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const generateImage = async (file: File) => {
+  const generateImage = useCallback(async (file: File) => {
     setIsGenerating(true);
     setError(null);
     
@@ -225,7 +173,7 @@ function UploadContent() {
         formData.append('background', backgroundColor);
       }
 
-      // Set timeout: 3 minutes (180 seconds)
+      // Set timeout: 3 minutes
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 180000);
 
@@ -260,7 +208,6 @@ function UploadContent() {
 
       if (data.imageUrl) {
         setGeneratedImage(data.imageUrl);
-        // Update remaining quota after successful generation
         if (data.remainingQuota !== undefined) {
           setRemainingQuota(data.remainingQuota);
         }
@@ -277,22 +224,93 @@ function UploadContent() {
     } finally {
       setIsGenerating(false);
     }
-  };
+  }, [effectivePhotoType, lang, selectedPurpose, backgroundColor, router]);
 
-  const reset = () => {
+  // Auto load for regenerate
+  useEffect(() => {
+    if (!regenerateId) return;
+
+    async function loadForRegenerate() {
+      setIsUploading(true);
+      try {
+        const res = await fetch(`/api/history/${regenerateId}`);
+        const data = await res.json();
+        if (!data.success) {
+          throw new Error(data.error || '加载记录失败');
+        }
+        const record = data.record;
+        setUploadedImage(record.originalUrl);
+        // Convert data URL to File object
+        const response = await fetch(record.originalUrl);
+        const blob = await response.blob();
+        const file = new File([blob], `original-${record.id}.jpg`, { type: blob.type });
+        // Start generation
+        await generateImage(file);
+      } catch (err: any) {
+        console.error('Regenerate load error:', err);
+        setError(err.message);
+      } finally {
+        setIsUploading(false);
+      }
+    }
+
+    loadForRegenerate();
+  }, [regenerateId, generateImage]);
+
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setError(null);
+    
+    try {
+      // Compress image before upload
+      const compressedFile = await compressImage(file);
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(compressedFile);
+      setUploadedImage(previewUrl);
+      
+      // Start generation
+      await generateImage(compressedFile);
+    } catch (err) {
+      console.error('Compression error:', err);
+      // Fallback to original file if compression fails
+      if (typeof URL !== 'undefined') {
+        const previewUrl = URL.createObjectURL(file);
+        setUploadedImage(previewUrl);
+        await generateImage(file);
+      } else {
+        setError('Compression failed, please try again');
+      }
+    } finally {
+      setIsUploading(false);
+    }
+  }, [compressImage, generateImage]);
+
+  const reset = useCallback(() => {
     setUploadedImage(null);
     setGeneratedImage(null);
     setError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  };
+  }, []);
 
-  const changePhotoType = (type: PhotoType) => {
+  const changePhotoType = useCallback((type: PhotoType) => {
     setPhotoType(type);
     reset();
     router.push(`/upload?type=${type}`);
-  };
+  }, [reset, router]);
+
+  // Redirect if not signed in
+  if (!isSignedIn) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50 flex items-center justify-center">
+        <p>{lang === 'zh' ? '正在跳转...' : 'Redirecting...'}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50">
@@ -375,7 +393,7 @@ function UploadContent() {
           </div>
         </div>
 
-        {/* ID Photo Custom Parameters - only show when selecting ID photo */}
+        {/* ID Photo Custom Parameters */}
         {effectivePhotoType === 'id' && !uploadedImage && !isUploading && !isGenerating && !error && (
           <div className="max-w-2xl mx-auto mb-8">
             <div className="bg-white rounded-2xl shadow-lg p-6">
@@ -422,7 +440,7 @@ function UploadContent() {
                       }`}
                       style={backgroundColor === color.key ? {
                         borderColor: color.key,
-                        backgroundColor: color.key + '33', // 20% opacity
+                        backgroundColor: color.key + '33',
                       } : {}}
                     >
                       <div className="flex items-center gap-2 justify-center">
@@ -440,7 +458,7 @@ function UploadContent() {
           </div>
         )}
 
-        {/* Upload Area - 只有没有图片且不在生成中时显示 */}
+        {/* Upload Area */}
         {!uploadedImage && !isUploading && !isGenerating && !error && (
           <div className="max-w-xl mx-auto">
             <div className="bg-white rounded-2xl shadow-lg p-8">
@@ -628,8 +646,7 @@ function UploadContent() {
 }
 
 export default function UploadPage() {
-  // Use static fallback text to avoid any server-side navigator access issues
-  // It's just a 1-2 second loading screen, language doesn't matter much
+  // Use completely static fallback to avoid ANY server-side issues
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50">
