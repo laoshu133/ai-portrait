@@ -8,6 +8,32 @@ import Link from 'next/link';
 
 type PhotoType = 'id' | 'festival' | 'memorial';
 
+// Standard ID photo purposes and dimensions (width:height ratio)
+interface IdPhotoOption {
+  key: string;
+  nameZh: string;
+  nameEn: string;
+  aspectRatio: string;
+}
+
+const ID_PHOTO_PURPOSES: IdPhotoOption[] = [
+  { key: 'common', nameZh: '通用一寸', nameEn: 'Common 1 inch', aspectRatio: '25:35' },
+  { key: 'common2', nameZh: '通用二寸', nameEn: 'Common 2 inch', aspectRatio: '35:49' },
+  { key: 'passport', nameZh: '护照/签证', nameEn: 'Passport/Visa', aspectRatio: '35:45' },
+  { key: 'idcard', nameZh: '中国大陆身份证', nameEn: 'Chinese ID Card', aspectRatio: '1:1' },
+  { key: 'driver', nameZh: '驾驶证', nameEn: 'Driver License', aspectRatio: '1:1' },
+  { key: 'social', nameZh: '社保照片', nameEn: 'Social Security', aspectRatio: '35:45' },
+  { key: 'cv', nameZh: '简历照片', nameEn: 'Resume Photo', aspectRatio: '2:3' },
+];
+
+// Background color options
+const BACKGROUND_COLORS = [
+  { key: 'blue', nameZh: '蓝色', nameEn: 'Blue', value: '蓝色' },
+  { key: 'white', nameZh: '白色', nameEn: 'White', value: '白色' },
+  { key: 'red', nameZh: '红色', nameEn: 'Red', value: '红色' },
+  { key: 'gray', nameZh: '灰色', nameEn: 'Gray', value: '灰色' },
+];
+
 function UploadContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -27,6 +53,9 @@ function UploadContent() {
   const [error, setError] = useState<string | null>(null);
   const [remainingQuota, setRemainingQuota] = useState<number | null>(null);
   const [showQuotaModal, setShowQuotaModal] = useState(false);
+  // ID photo custom parameters
+  const [selectedPurpose, setSelectedPurpose] = useState<string>('common');
+  const [backgroundColor, setBackgroundColor] = useState<string>('blue');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const t = lang === 'zh' ? zh : en;
@@ -174,6 +203,11 @@ function UploadContent() {
       formData.append('image', file);
       formData.append('type', effectivePhotoType);
       formData.append('lang', lang);
+      // Add ID photo custom parameters
+      if (effectivePhotoType === 'id') {
+        formData.append('purpose', selectedPurpose);
+        formData.append('background', backgroundColor);
+      }
 
       // Set timeout: 3 minutes (180 seconds)
       const controller = new AbortController();
@@ -324,6 +358,71 @@ function UploadContent() {
             </button>
           </div>
         </div>
+
+        {/* ID Photo Custom Parameters - only show when selecting ID photo */}
+        {effectivePhotoType === 'id' && !uploadedImage && !isUploading && !isGenerating && !error && (
+          <div className="max-w-2xl mx-auto mb-8">
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <h2 className="text-xl font-semibold mb-4">
+                {lang === 'zh' ? '证件照参数设置' : 'ID Photo Settings'}
+              </h2>
+              
+              {/* Purpose Selection */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  {lang === 'zh' ? '用途 / 尺寸' : 'Purpose / Size'}
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {ID_PHOTO_PURPOSES.map(purpose => (
+                    <button
+                      key={purpose.key}
+                      onClick={() => setSelectedPurpose(purpose.key)}
+                      className={`p-3 rounded-lg text-sm transition-all ${
+                        selectedPurpose === purpose.key
+                          ? 'bg-blue-100 border-2 border-blue-500'
+                          : 'bg-gray-50 border border-gray-200 hover:border-blue-300'
+                      }`}
+                    >
+                      {lang === 'zh' ? purpose.nameZh : purpose.nameEn}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Background Color Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  {lang === 'zh' ? '背景颜色' : 'Background Color'}
+                </label>
+                <div className="grid grid-cols-4 gap-3">
+                  {BACKGROUND_COLORS.map(color => (
+                    <button
+                      key={color.key}
+                      onClick={() => setBackgroundColor(color.key)}
+                      className={`p-3 rounded-lg text-sm transition-all ${
+                        backgroundColor === color.key
+                          ? `bg-${color.key}-100 border-2 border-${color.key}-500`
+                          : 'bg-gray-50 border border-gray-200 hover:border-orange-300'
+                      }`}
+                      style={backgroundColor === color.key ? {
+                        borderColor: color.key,
+                        backgroundColor: `${color.key}100`
+                      } : {}}
+                    >
+                      <div className="flex items-center gap-2 justify-center">
+                        <div
+                          className="w-4 h-4 rounded-full border border-gray-300"
+                          style={{ backgroundColor: color.key }}
+                        ></div>
+                        {lang === 'zh' ? color.nameZh : color.nameEn}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Upload Area - 只有没有图片且不在生成中时显示 */}
         {!uploadedImage && !isUploading && !isGenerating && !error && (

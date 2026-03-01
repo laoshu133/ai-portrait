@@ -105,8 +105,10 @@ export async function POST(req: NextRequest) {
     const image = formData.get('image') as File;
     const type = (formData.get('type') as string) || 'id';
     const lang = (formData.get('lang') as string) || 'zh';
+    const purpose = (formData.get('purpose') as string) || 'common';
+    const background = (formData.get('background') as string) || 'blue';
 
-    log(`Received: image=${image?.name}, size=${image?.size}, type=${type}`);
+    log(`Received: image=${image?.name}, size=${image?.size}, type=${type}, purpose=${purpose}, background=${background}`);
 
     if (!image) {
       log('No image provided');
@@ -133,19 +135,53 @@ export async function POST(req: NextRequest) {
     (buffer as any) = null;
     (arrayBuffer as any) = null;
 
-    const prompts: Record<string, string> = {
-      id: lang === 'zh' 
-        ? '基于这张照片，生成一张正式的证件照，蓝色背景，穿着正装，面带微笑，保持人物特征不变。'
-        : 'Based on this photo, generate a formal ID photo with blue background, business attire, smiling, keep the original person features.',
-      festival: lang === 'zh'
-        ? '基于这张照片，生成一张喜庆节日照片，红色喜庆背景，温暖的笑容，保持人物特征不变。'
-        : 'Based on this photo, generate a festive celebration photo with celebratory red background, warm smile, keep the original person features.',
-      memorial: lang === 'zh'
-        ? '基于这张照片，生成一张庄重的黑白纪念肖像，严肃的表情，经典风格，保持人物特征不变。'
-        : 'Based on this photo, generate a dignified black and white memorial portrait, serious expression, classic style, keep the original person features.',
+    // Purpose names for prompt
+    const purposeNamesZh: Record<string, string> = {
+      common: '一寸证件照',
+      common2: '二寸证件照',
+      passport: '护照/签证照片',
+      idcard: '中国大陆身份证照片',
+      driver: '驾驶证照片',
+      social: '社保照片',
+      cv: '简历照片',
+    };
+    const purposeNamesEn: Record<string, string> = {
+      common: '1 inch ID photo',
+      common2: '2 inch ID photo',
+      passport: 'passport/visa photo',
+      idcard: 'Chinese ID card photo',
+      driver: 'driver license photo',
+      social: 'social security photo',
+      cv: 'resume photo',
     };
 
-    const prompt = prompts[type] || prompts.id;
+    let prompt: string;
+    if (type === 'id') {
+      const purposeName = lang === 'zh' ? purposeNamesZh[purpose] : purposeNamesEn[purpose];
+      if (lang === 'zh') {
+        prompt = `基于这张照片，生成一张正式的${purposeName}，${background}背景，穿着正装，面带微笑，保持人物五官特征完全不变，裁剪为标准证件照构图。`;
+      } else {
+        prompt = `Based on this photo, generate a formal ${purposeName} with ${background} background, business attire, smiling, keep the original person facial features completely unchanged, crop to standard ID photo composition.`;
+      }
+    } else if (type === 'festival') {
+      if (lang === 'zh') {
+        prompt = '基于这张照片，生成一张喜庆节日照片，红色喜庆背景，温暖的笑容，保持人物特征不变。';
+      } else {
+        prompt = 'Based on this photo, generate a festive celebration photo with celebratory red background, warm smile, keep the original person features.';
+      }
+    } else if (type === 'memorial') {
+      if (lang === 'zh') {
+        prompt = '基于这张照片，生成一张庄重的黑白纪念肖像，严肃的表情，经典风格，保持人物特征不变。';
+      } else {
+        prompt = 'Based on this photo, generate a dignified black and white memorial portrait, serious expression, classic style, keep the original person features.';
+      }
+    } else {
+      if (lang === 'zh') {
+        prompt = '基于这张照片，生成一张正式的证件照，蓝色背景，穿着正装，面带微笑，保持人物特征不变。';
+      } else {
+        prompt = 'Based on this photo, generate a formal ID photo with blue background, business attire, smiling, keep the original person features.';
+      }
+    }
     const apiUrl = process.env.AIHUBMIX_API_URL || 'https://aihubmix.com';
     const apiKey = process.env.AIHUBMIX_API_KEY;
     const model = process.env.AI_MODEL || 'gemini-3.1-flash-image-preview';
