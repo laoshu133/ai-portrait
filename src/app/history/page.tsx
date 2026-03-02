@@ -117,6 +117,32 @@ export default function HistoryPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50">
+        {/* Header */}
+        <header className="bg-white shadow-sm">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex justify-between items-center">
+              <Link href="/" className="flex items-center gap-3">
+                <img src="/logo.png" alt="银龄相馆" className="w-8 h-8" />
+                <div className="text-2xl font-bold text-orange-900">
+                  {lang === 'zh' ? '银龄相馆' : 'Silver Portrait'}
+                </div>
+              </Link>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
+                  className="text-sm text-gray-600 hover:text-orange-600"
+                >
+                  {lang === 'zh' ? 'EN' : '中文'}
+                </button>
+                <Link href="/" className="px-3 py-2 text-orange-600 hover:text-orange-700 font-medium text-sm">
+                  {lang === 'zh' ? '← 首页' : '← Home'}
+                </Link>
+                <UserButton afterSignOutUrl="/" />
+              </div>
+            </div>
+          </div>
+        </header>
+        
         <div className="container mx-auto px-4 py-16">
           <div className="max-w-sm mx-auto bg-white rounded-2xl shadow-lg p-12 text-center">
             <div className="text-6xl animate-pulse mb-6">⌛</div>
@@ -125,6 +151,19 @@ export default function HistoryPage() {
             </p>
           </div>
         </div>
+
+        {/* Footer */}
+        <footer className="py-6 bg-gray-900 text-gray-400 text-center">
+          <p>© 2026 {lang === 'zh' ? '银龄相馆' : 'Silver Portrait Studio'}</p>
+          <div className="mt-2 space-x-4">
+            <Link href="/privacy" className="hover:text-white transition-colors">
+              {lang === 'zh' ? '隐私政策' : 'Privacy Policy'}
+            </Link>
+            <Link href="/terms" className="hover:text-white transition-colors">
+              {lang === 'zh' ? '服务条款' : 'Terms of Service'}
+            </Link>
+          </div>
+        </footer>
       </div>
     );
   }

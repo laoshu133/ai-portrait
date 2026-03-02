@@ -654,12 +654,35 @@ export default function UploadPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50">
+        {/* Header */}
+        <header className="bg-white shadow-sm">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <img src="/logo.png" alt="银龄相馆" className="w-8 h-8" />
+                <div className="text-2xl font-bold text-orange-900">
+                  银龄相馆
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+        
         <div className="container mx-auto px-4 py-16">
           <div className="max-w-sm mx-auto bg-white rounded-2xl shadow-lg p-12 text-center">
             <div className="text-6xl animate-pulse mb-6">⌛</div>
             <p className="text-xl text-gray-600">加载中...</p>
           </div>
         </div>
+
+        {/* Footer */}
+        <footer className="py-6 bg-gray-900 text-gray-400 text-center">
+          <p>© 2026 银龄相馆</p>
+          <div className="mt-2 space-x-4">
+            <span>隐私政策</span>
+            <span>服务条款</span>
+          </div>
+        </footer>
       </div>
     }>
       <UploadContent />

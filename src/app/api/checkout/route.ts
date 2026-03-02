@@ -25,6 +25,12 @@ export async function POST(request: Request) {
     
     const client = getCreemClient();
     
+    if (!client) {
+      return NextResponse.json({ 
+        error: '支付功能暂时不可用，请稍后再试或联系管理员' 
+      }, { status: 503 });
+    }
+    
     // Get base URL from environment or request
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
       (request.headers.get('origin') || 'https://ai-portrait.aipixbox.com');

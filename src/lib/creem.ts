@@ -229,10 +229,11 @@ export function getFormattedPrice(price: number, currency: string): string {
 }
 
 // Initialize Creem client
-export function getCreemClient(): CreemClient {
+export function getCreemClient(): CreemClient | null {
   const apiKey = process.env.CREEM_API_KEY;
   if (!apiKey) {
-    throw new Error('CREEM_API_KEY not configured in environment');
+    console.warn('CREEM_API_KEY not configured in environment');
+    return null;
   }
   
   return new CreemClient({
