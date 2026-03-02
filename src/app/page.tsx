@@ -170,9 +170,12 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-r from-amber-400/20 to-orange-400/20"></div>
         <div className="container mx-auto px-4 py-6 relative z-10">
           <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+            <img src="/logo.svg" alt="银龄相馆" className="w-10 h-10" />
             <div className="text-3xl font-bold text-orange-900">
               {lang === 'zh' ? '银龄相馆' : 'Silver Portrait'}
             </div>
+          </div>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}

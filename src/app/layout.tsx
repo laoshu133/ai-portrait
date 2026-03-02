@@ -11,6 +11,14 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: "银龄相馆 - Silver Portrait Studio",
   description: "为老年人打造的 AI 形象照应用 - AI portrait app designed for seniors",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/logo.svg", type: "image/svg+xml" },
+    ],
+  },
 };
 
 export default function RootLayout({

@@ -57,8 +57,11 @@ export default function HistoryDetailPage() {
         <header className="bg-white shadow-sm">
           <div className="container mx-auto px-4 py-4">
             <div className="flex justify-between items-center">
-              <Link href="/" className="text-2xl font-bold text-orange-900">
-                {lang === 'zh' ? '银龄相馆' : 'Silver Portrait'}
+              <Link href="/" className="flex items-center gap-3">
+                <img src="/logo.svg" alt="银龄相馆" className="w-8 h-8" />
+                <div className="text-2xl font-bold text-orange-900">
+                  {lang === 'zh' ? '银龄相馆' : 'Silver Portrait'}
+                </div>
               </Link>
               <div className="flex items-center gap-4">
                 <button
@@ -97,8 +100,11 @@ export default function HistoryDetailPage() {
         <header className="bg-white shadow-sm">
           <div className="container mx-auto px-4 py-4">
             <div className="flex justify-between items-center">
-              <Link href="/" className="text-2xl font-bold text-orange-900">
-                {lang === 'zh' ? '银龄相馆' : 'Silver Portrait'}
+              <Link href="/" className="flex items-center gap-3">
+                <img src="/logo.svg" alt="银龄相馆" className="w-8 h-8" />
+                <div className="text-2xl font-bold text-orange-900">
+                  {lang === 'zh' ? '银龄相馆' : 'Silver Portrait'}
+                </div>
               </Link>
               <div className="flex items-center gap-4">
                 <button
@@ -155,8 +161,11 @@ export default function HistoryDetailPage() {
       <header className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <Link href="/" className="text-2xl font-bold text-orange-900">
-              {lang === 'zh' ? '银龄相馆' : 'Silver Portrait'}
+            <Link href="/" className="flex items-center gap-3">
+              <img src="/logo.svg" alt="银龄相馆" className="w-8 h-8" />
+              <div className="text-2xl font-bold text-orange-900">
+                {lang === 'zh' ? '银龄相馆' : 'Silver Portrait'}
+              </div>
             </Link>
             <div className="flex items-center gap-4">
               <button
