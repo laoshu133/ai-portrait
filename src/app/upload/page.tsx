@@ -397,6 +397,39 @@ function UploadContent() {
           </div>
         </div>
 
+        {/* Upload Area */}
+        {!uploadedImage && !isUploading && !isGenerating && !error && (
+          <div className="max-w-2xl mx-auto mb-8">
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <h2 className="text-xl font-semibold text-center mb-6">
+                {lang === 'zh' ? '上传您的照片' : 'Upload Your Photo'}
+              </h2>
+              
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="file-upload"
+                  ref={fileInputRef}
+                />
+                <label htmlFor="file-upload" className="cursor-pointer">
+                  <div className="space-y-4">
+                    <div className="text-5xl">📷</div>
+                    <p className="text-gray-600">
+                      {lang === 'zh' ? '点击选择图片' : 'Click to select image'}
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      {lang === 'zh' ? '支持 JPG、PNG 格式，最大 4MB' : 'Supports JPG, PNG, max 4MB'}
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ID Photo Custom Parameters */}
         {effectivePhotoType === 'id' && !uploadedImage && !isUploading && !isGenerating && !error && (
           <div className="max-w-2xl mx-auto mb-8">
@@ -457,39 +490,6 @@ function UploadContent() {
                     </button>
                   ))}
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Upload Area */}
-        {!uploadedImage && !isUploading && !isGenerating && !error && (
-          <div className="max-w-xl mx-auto">
-            <div className="bg-white rounded-2xl shadow-lg p-8">
-              <h2 className="text-xl font-semibold text-center mb-6">
-                {lang === 'zh' ? '上传您的照片' : 'Upload Your Photo'}
-              </h2>
-              
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  id="file-upload"
-                  ref={fileInputRef}
-                />
-                <label htmlFor="file-upload" className="cursor-pointer">
-                  <div className="space-y-4">
-                    <div className="text-6xl">📷</div>
-                    <p className="text-gray-600">
-                      {lang === 'zh' ? '点击选择图片' : 'Click to select image'}
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      {lang === 'zh' ? '支持 JPG、PNG 格式，最大 4MB' : 'Supports JPG, PNG, max 4MB'}
-                    </p>
-                  </div>
-                </label>
               </div>
             </div>
           </div>
