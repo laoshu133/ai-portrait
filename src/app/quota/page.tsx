@@ -99,7 +99,7 @@ export default function QuotaPage() {
       <header className="container mx-auto px-4 py-6">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="银龄相馆" className="w-10 h-10" />
+            <img src="/logo.png" alt="银龄相馆" className="w-10 h-10" />
             <div className="text-3xl font-bold text-orange-900">
               {lang === 'zh' ? '银龄相馆' : 'Silver Portrait'}
             </div>

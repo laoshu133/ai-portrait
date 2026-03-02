@@ -13,10 +13,10 @@ export const metadata: Metadata = {
   description: "为老年人打造的 AI 形象照应用 - AI portrait app designed for seniors",
   icons: {
     icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.png", type: "image/png" },
     ],
     apple: [
-      { url: "/logo.svg", type: "image/svg+xml" },
+      { url: "/logo.png", type: "image/png" },
     ],
   },
 };
