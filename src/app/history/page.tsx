@@ -27,11 +27,34 @@ export default function HistoryPage() {
   const [lang, setLang] = useState<'zh' | 'en'>('zh');
   const [remainingQuota, setRemainingQuota] = useState<number | null>(null);
 
-  // Detect language and fetch quota
+  // 初始化语言：优先读localStorage，其次读浏览器accept-language
   useEffect(() => {
-    const browserLang = navigator.language.split('-')[0];
-    setLang(browserLang === 'zh' ? 'zh' : 'en');
-    
+    const savedLang = localStorage.getItem('lang');
+    if (savedLang === 'zh' || savedLang === 'en') {
+      setLang(savedLang);
+    } else {
+      // 读取浏览器语言
+      const browserLang = navigator.language || '';
+      setLang(browserLang.startsWith('zh') ? 'zh' : 'en');
+    }
+  }, []);
+
+  // 语言变化时更新页面标题
+  useEffect(() => {
+    document.title = lang === 'zh' 
+      ? '生成记录 - 银龄相馆' 
+      : 'Generation History - Silver Portrait Studio';
+  }, [lang]);
+
+  // 切换语言并保存到localStorage
+  const toggleLang = () => {
+    const newLang = lang === 'zh' ? 'en' : 'zh';
+    setLang(newLang);
+    localStorage.setItem('lang', newLang);
+  };
+
+  // Fetch quota
+  useEffect(() => {
     if (!isSignedIn) return;
     
     async function fetchQuota() {
@@ -129,7 +152,7 @@ export default function HistoryPage() {
               </Link>
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
+                  onClick={toggleLang}
                   className="text-sm text-gray-600 hover:text-orange-600"
                 >
                   {lang === 'zh' ? 'EN' : '中文'}
@@ -198,7 +221,7 @@ export default function HistoryPage() {
             </Link>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
+                onClick={toggleLang}
                 className="text-sm text-gray-600 hover:text-orange-600"
               >
                 {lang === 'zh' ? 'EN' : '中文'}
