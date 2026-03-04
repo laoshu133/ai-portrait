@@ -535,14 +535,26 @@ export default function Home() {
       {/* Footer */}
       <footer className="py-8 bg-gray-900 text-gray-400 text-center">
         <p>© 2026 {lang === 'zh' ? '银龄相馆' : 'Silver Portrait Studio'}</p>
-        <div className="mt-2 space-x-4">
+        <p className="mt-2">
+          {lang === 'zh' ? '客服邮箱：' : 'Customer Support: '}
+          <a href="mailto:support@aipixbox.com" className="text-orange-400 hover:text-orange-300 transition-colors">
+            support@aipixbox.com
+          </a>
+        </p>
+        <div className="mt-4 space-x-4">
           <Link href="/privacy" className="hover:text-white transition-colors">
             {lang === 'zh' ? '隐私政策' : 'Privacy Policy'}
           </Link>
           <Link href="/terms" className="hover:text-white transition-colors">
             {lang === 'zh' ? '服务条款' : 'Terms of Service'}
           </Link>
+          <Link href="/content-policy" className="hover:text-white transition-colors">
+            {lang === 'zh' ? '内容安全政策' : 'Content Safety Policy'}
+          </Link>
         </div>
+        <p className="mt-4 text-sm text-gray-500">
+          {lang === 'zh' ? '我们严格审核所有生成内容，禁止生成违法、违规、低俗内容。如有问题请随时联系客服。' : 'We strictly review all generated content and prohibit illegal, violating, or vulgar content. Contact support if you have any issues.'}
+        </p>
       </footer>
 
       {/* Upload Step Modal */}

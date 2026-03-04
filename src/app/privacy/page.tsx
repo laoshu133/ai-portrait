@@ -100,7 +100,7 @@ export default function PrivacyPolicy() {
                 <section>
                   <h2 className="text-2xl font-semibold text-gray-900 mb-4">7. 联系我们</h2>
                   <p>
-                    如果您对本隐私政策有任何问题，请通过网站首页联系我们。
+                    如果您对本隐私政策有任何问题，请随时联系我们的客服邮箱：<a href="mailto:support@aipixbox.com" className="text-orange-600 hover:underline">support@aipixbox.com</a>，我们会在24小时内回复。
                   </p>
                 </section>
               </div>
@@ -181,12 +181,21 @@ export default function PrivacyPolicy() {
 
       <footer className="py-8 bg-gray-900 text-gray-400 text-center">
         <p>© 2026 {lang === 'zh' ? '银龄相馆' : 'Silver Portrait Studio'}</p>
-        <div className="mt-2 space-x-4">
+        <p className="mt-2">
+          {lang === 'zh' ? '客服邮箱：' : 'Customer Support: '}
+          <a href="mailto:support@aipixbox.com" className="text-orange-400 hover:text-orange-300 transition-colors">
+            support@aipixbox.com
+          </a>
+        </p>
+        <div className="mt-4 space-x-4">
           <Link href="/privacy" className="hover:text-white transition-colors">
             {lang === 'zh' ? '隐私政策' : 'Privacy Policy'}
           </Link>
           <Link href="/terms" className="hover:text-white transition-colors">
             {lang === 'zh' ? '服务条款' : 'Terms of Service'}
+          </Link>
+          <Link href="/content-policy" className="hover:text-white transition-colors">
+            {lang === 'zh' ? '内容安全政策' : 'Content Safety Policy'}
           </Link>
         </div>
       </footer>
