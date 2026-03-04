@@ -12,6 +12,25 @@ export default function Home() {
   const { isSignedIn, user } = useUser();
   const [lang, setLang] = useState<'zh' | 'en'>('zh');
   const [step, setStep] = useState<Step>('home');
+
+  // 初始化语言：优先读localStorage，其次读浏览器accept-language
+  useEffect(() => {
+    const savedLang = localStorage.getItem('lang');
+    if (savedLang === 'zh' || savedLang === 'en') {
+      setLang(savedLang);
+    } else {
+      // 读取浏览器语言
+      const browserLang = navigator.language || '';
+      setLang(browserLang.startsWith('zh') ? 'zh' : 'en');
+    }
+  }, []);
+
+  // 切换语言并保存到localStorage
+  const toggleLang = () => {
+    const newLang = lang === 'zh' ? 'en' : 'zh';
+    setLang(newLang);
+    localStorage.setItem('lang', newLang);
+  };
   const [photoType, setPhotoType] = useState<PhotoType | null>(null);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
@@ -178,7 +197,7 @@ export default function Home() {
           </div>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
+                onClick={toggleLang}
                 className="text-sm text-gray-600 hover:text-orange-600"
               >
                 {lang === 'zh' ? 'EN' : '中文'}

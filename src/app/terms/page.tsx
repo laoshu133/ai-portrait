@@ -1,12 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { UserButton, useUser } from '@clerk/nextjs';
 
 export default function TermsOfService() {
   const { isSignedIn } = useUser();
   const [lang, setLang] = useState<'zh' | 'en'>('zh');
+
+  // 初始化语言：优先读localStorage，其次读浏览器accept-language
+  useEffect(() => {
+    const savedLang = localStorage.getItem('lang');
+    if (savedLang === 'zh' || savedLang === 'en') {
+      setLang(savedLang);
+    } else {
+      // 读取浏览器语言
+      const browserLang = navigator.language || '';
+      setLang(browserLang.startsWith('zh') ? 'zh' : 'en');
+    }
+  }, []);
+
+  // 切换语言并保存到localStorage
+  const toggleLang = () => {
+    const newLang = lang === 'zh' ? 'en' : 'zh';
+    setLang(newLang);
+    localStorage.setItem('lang', newLang);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50">
@@ -19,7 +38,7 @@ export default function TermsOfService() {
             </Link>
             <div className="flex items-center gap-4">
               <button
-                onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
+                onClick={toggleLang}
                 className="text-sm text-gray-600 hover:text-orange-600"
               >
                 {lang === 'zh' ? 'EN' : '中文'}
