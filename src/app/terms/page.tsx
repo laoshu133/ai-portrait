@@ -20,6 +20,13 @@ export default function TermsOfService() {
     }
   }, []);
 
+  // 语言变化时更新页面标题
+  useEffect(() => {
+    document.title = lang === 'zh' 
+      ? '服务条款 - 银龄相馆' 
+      : 'Terms of Service - Silver Portrait Studio';
+  }, [lang]);
+
   // 切换语言并保存到localStorage
   const toggleLang = () => {
     const newLang = lang === 'zh' ? 'en' : 'zh';

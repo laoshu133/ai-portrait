@@ -25,6 +25,13 @@ export default function Home() {
     }
   }, []);
 
+  // 语言变化时更新页面标题
+  useEffect(() => {
+    document.title = lang === 'zh' 
+      ? '银龄相馆 - 一键生成精美AI形象照' 
+      : 'Silver Portrait Studio - Generate Beautiful AI Portraits in One Click';
+  }, [lang]);
+
   // 切换语言并保存到localStorage
   const toggleLang = () => {
     const newLang = lang === 'zh' ? 'en' : 'zh';

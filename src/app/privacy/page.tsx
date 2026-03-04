@@ -20,6 +20,13 @@ export default function PrivacyPolicy() {
     }
   }, []);
 
+  // 语言变化时更新页面标题
+  useEffect(() => {
+    document.title = lang === 'zh' 
+      ? '隐私政策 - 银龄相馆' 
+      : 'Privacy Policy - Silver Portrait Studio';
+  }, [lang]);
+
   // 切换语言并保存到localStorage
   const toggleLang = () => {
     const newLang = lang === 'zh' ? 'en' : 'zh';

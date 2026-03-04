@@ -20,6 +20,13 @@ export default function ContentPolicy() {
     }
   }, []);
 
+  // 语言变化时更新页面标题
+  useEffect(() => {
+    document.title = lang === 'zh' 
+      ? '内容安全政策 - 银龄相馆' 
+      : 'Content Safety Policy - Silver Portrait Studio';
+  }, [lang]);
+
   // 切换语言并保存到localStorage
   const toggleLang = () => {
     const newLang = lang === 'zh' ? 'en' : 'zh';
