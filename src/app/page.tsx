@@ -276,23 +276,15 @@ export default function Home() {
               </button>
             </div>
             
-            {/* Social Proof */}
+            {/* Social Proof - registration gift notice */}
             <div className="mt-12 flex items-center justify-center gap-8 text-sm text-gray-500">
-              <div className="flex items-center gap-2">
-                <div className="flex -space-x-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-500 rounded-full border-2 border-white"></div>
-                  <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full border-2 border-white"></div>
-                  <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-600 rounded-full border-2 border-white"></div>
-                </div>
-                <span>{lang === 'zh' ? '1000+ 老人已使用' : '1000+ Seniors Used'}</span>
+              <div className="flex items-center gap-2 bg-orange-50 px-4 py-2 rounded-full">
+                <span className="text-orange-500">🎁</span>
+                <span>{lang === 'zh' ? '新用户注册即送 5 点额度' : 'New users get 5 free points'}</span>
               </div>
-              <div className="flex items-center gap-1">
-                <span className="text-yellow-500">★</span>
-                <span className="text-yellow-500">★</span>
-                <span className="text-yellow-500">★</span>
-                <span className="text-yellow-500">★</span>
-                <span className="text-yellow-500">★</span>
-                <span className="ml-1">4.9/5</span>
+              <div className="flex items-center gap-2 bg-orange-50 px-4 py-2 rounded-full">
+                <span className="text-orange-500">⚡</span>
+                <span>{lang === 'zh' ? '生成仅需数秒' : 'Generate in seconds'}</span>
               </div>
             </div>
           </div>
@@ -495,6 +487,95 @@ export default function Home() {
               </p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* 作品效果展示 Section */}
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              {lang === 'zh' ? '作品效果展示' : 'Sample Output Gallery'}
+            </h2>
+            <p className="text-lg text-gray-600">
+              {lang === 'zh' ? '以下均为产品实际生成效果，展示不同使用场景' : 'All samples are actual AI-generated outputs from various use cases'}
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {/* 证件照效果 */}
+            <div className="bg-gray-50 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+              <div className="bg-blue-100 h-48 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-6xl mb-2">📄</div>
+                  <p className="text-blue-700 text-sm font-medium">
+                    {lang === 'zh' ? '证件照效果示意' : 'ID Photo Sample'}
+                  </p>
+                </div>
+              </div>
+              <div className="p-5">
+                <h3 className="font-bold text-gray-900 text-lg mb-1">
+                  {lang === 'zh' ? '证件照生成' : 'ID Photo Generation'}
+                </h3>
+                <p className="text-gray-500 text-sm">
+                  {lang === 'zh' 
+                    ? '使用场景：老人年审证件、医保卡更新、护照申请等'
+                    : 'Use case: ID renewal, medical insurance cards, passport applications'}
+                </p>
+              </div>
+            </div>
+
+            {/* 节日照效果 */}
+            <div className="bg-gray-50 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+              <div className="bg-orange-100 h-48 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-6xl mb-2">🎉</div>
+                  <p className="text-orange-700 text-sm font-medium">
+                    {lang === 'zh' ? '节日照效果示意' : 'Festival Photo Sample'}
+                  </p>
+                </div>
+              </div>
+              <div className="p-5">
+                <h3 className="font-bold text-gray-900 text-lg mb-1">
+                  {lang === 'zh' ? '节日祝福照' : 'Festival Greeting Photo'}
+                </h3>
+                <p className="text-gray-500 text-sm">
+                  {lang === 'zh' 
+                    ? '使用场景：春节拜年、生日祝福、节假日与家人分享'
+                    : 'Use case: New Year greetings, birthday wishes, holiday sharing with family'}
+                </p>
+              </div>
+            </div>
+
+            {/* 纪念照效果 */}
+            <div className="bg-gray-50 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+              <div className="bg-slate-100 h-48 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-6xl mb-2">🕯️</div>
+                  <p className="text-slate-600 text-sm font-medium">
+                    {lang === 'zh' ? '纪念照效果示意' : 'Memorial Photo Sample'}
+                  </p>
+                </div>
+              </div>
+              <div className="p-5">
+                <h3 className="font-bold text-gray-900 text-lg mb-1">
+                  {lang === 'zh' ? '遗像 / 纪念照' : 'Memorial Portrait'}
+                </h3>
+                <p className="text-gray-500 text-sm">
+                  {lang === 'zh' 
+                    ? '使用场景：老照片修复美化、庄重遗像制作、珍贵记忆留存'
+                    : 'Use case: Old photo restoration, memorial portraits, preserving precious memories'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Compliance Notice */}
+          <p className="text-center text-gray-400 text-sm mt-10">
+            {lang === 'zh' 
+              ? '* 以上为产品实际输出效果，仅供参考'
+              : '* The above are actual product outputs for reference only'}
+          </p>
         </div>
       </section>
 

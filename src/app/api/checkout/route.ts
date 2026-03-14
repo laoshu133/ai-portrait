@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { getCreemClient } from '@/lib/creem';
 import { getProductById } from '@/lib/creem';
+import { getUserQuota } from '@/lib/quota';
 
 export async function POST(request: Request) {
   const { userId } = await auth();
@@ -21,6 +22,16 @@ export async function POST(request: Request) {
     
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+    
+    // 首单专属限购校验
+    if (product.firstOrderOnly) {
+      const quota = await getUserQuota(userId);
+      if (quota.usedFirstOrderPack) {
+        return NextResponse.json({ 
+          error: '首单体验包每人限购1次，您已使用过该优惠' 
+        }, { status: 400 });
+      }
     }
     
     const client = getCreemClient();
@@ -43,9 +54,6 @@ export async function POST(request: Request) {
     });
     
     // Add userId to metadata for webhook
-    // Note: Creem client will include this in the checkout
-    // We need to modify the request to include metadata
-    // For now, we pass it as metadata query param
     const checkoutUrl = `${result.session.checkout_url}?metadata=${encodeURIComponent(JSON.stringify({ userId }))}`;
     
     return NextResponse.json({
@@ -63,3 +71,4 @@ export async function POST(request: Request) {
     }, { status: 500 });
   }
 }
+

@@ -14,37 +14,34 @@ export default function QuotaPage() {
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [firstOrderEligible, setFirstOrderEligible] = useState(false);
 
   const t = lang === 'zh' ? zh : en;
 
-  // 初始化语言：优先读localStorage，其次读浏览器accept-language
   useEffect(() => {
     const savedLang = localStorage.getItem('lang');
     if (savedLang === 'zh' || savedLang === 'en') {
       setLang(savedLang);
     } else {
-      // 读取浏览器语言
       const browserLang = navigator.language || '';
       setLang(browserLang.startsWith('zh') ? 'zh' : 'en');
     }
     
-    // Check for success query param
     const url = new URL(window.location.href);
     if (url.searchParams.get('success') === 'true') {
       setSuccess(true);
     }
     
     fetchQuota();
+    fetchFirstOrderEligibility();
   }, []);
 
-  // 语言变化时更新页面标题
   useEffect(() => {
     document.title = lang === 'zh' 
-      ? '购买额度 - 银龄相馆' 
-      : 'Buy Quota - Silver Portrait Studio';
+      ? '购买点数 - 银龄相馆' 
+      : 'Buy Points - Silver Portrait Studio';
   }, [lang]);
 
-  // 切换语言并保存到localStorage
   const toggleLang = () => {
     const newLang = lang === 'zh' ? 'en' : 'zh';
     setLang(newLang);
@@ -65,6 +62,18 @@ export default function QuotaPage() {
     }
   };
 
+  const fetchFirstOrderEligibility = async () => {
+    try {
+      const res = await fetch('/api/quota/first-order');
+      const data = await res.json();
+      if (res.ok) {
+        setFirstOrderEligible(data.eligible);
+      }
+    } catch (err) {
+      console.error('Failed to fetch first order eligibility', err);
+    }
+  };
+
   const handlePurchase = async (productId: string) => {
     setPurchasing(productId);
     setError(null);
@@ -82,7 +91,6 @@ export default function QuotaPage() {
         throw new Error(data.error || 'Failed to create checkout');
       }
       
-      // Redirect to Creem checkout
       window.location.href = data.checkoutUrl;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -90,28 +98,28 @@ export default function QuotaPage() {
     }
   };
 
-  // Auto-refresh quota after successful purchase
   useEffect(() => {
     if (success) {
       const timer = setTimeout(() => {
         fetchQuota();
+        fetchFirstOrderEligibility();
         setSuccess(false);
       }, 2000);
       return () => clearTimeout(timer);
     }
   }, [success]);
 
-  // Detect user currency preference based on language
   const getDefaultCurrency = (): 'USD' | 'CNY' | 'EUR' | 'GBP' => {
     if (lang === 'zh') return 'CNY';
-    if (lang === 'en') {
-      // Could detect geolocation, default to USD for English speakers
-      return 'USD';
-    }
     return 'USD';
   };
 
   const currency = getDefaultCurrency();
+
+  // 分组：首单专属、随充灵活、主要套餐
+  const firstOrderProduct = QUOTA_PRODUCTS.find(p => p.firstOrderOnly);
+  const flexProduct = QUOTA_PRODUCTS.find(p => p.flexPack);
+  const mainProducts = QUOTA_PRODUCTS.filter(p => !p.firstOrderOnly && !p.flexPack);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50">
@@ -125,22 +133,13 @@ export default function QuotaPage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <button
-              onClick={toggleLang}
-              className="text-sm text-gray-600 hover:text-orange-600"
-            >
+            <button onClick={toggleLang} className="text-sm text-gray-600 hover:text-orange-600">
               {lang === 'zh' ? 'EN' : '中文'}
             </button>
-            <Link
-              href="/"
-              className="px-3 py-2 text-orange-600 hover:text-orange-700 font-medium text-sm"
-            >
+            <Link href="/" className="px-3 py-2 text-orange-600 hover:text-orange-700 font-medium text-sm">
               {lang === 'zh' ? '首页' : 'Home'}
             </Link>
-            <Link
-              href="/history"
-              className="px-3 py-2 text-orange-600 hover:text-orange-700 font-medium text-sm"
-            >
+            <Link href="/history" className="px-3 py-2 text-orange-600 hover:text-orange-700 font-medium text-sm">
               {lang === 'zh' ? '生成记录' : 'History'}
             </Link>
             <UserButton afterSignOutUrl="/" />
@@ -149,16 +148,16 @@ export default function QuotaPage() {
       </header>
 
       <main className="container mx-auto px-4 py-12">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           {/* Page Title */}
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              {lang === 'zh' ? '购买生成额度' : 'Buy Generation Quota'}
+              {lang === 'zh' ? '购买生成点数' : 'Buy Generation Points'}
             </h1>
             <p className="text-xl text-gray-600">
               {lang === 'zh' 
-                ? '一次购买，多次生成，方便快捷' 
-                : 'Buy once, generate multiple times, convenient and fast'}
+                ? '新用户注册即送5点 · 多种套餐灵活选择' 
+                : 'New users get 5 free points · Multiple plans available'}
             </p>
             
             {/* Current Quota Display */}
@@ -167,13 +166,13 @@ export default function QuotaPage() {
                 <div className="text-3xl">🎫</div>
                 <div className="text-left">
                   <p className="text-sm text-gray-600">
-                    {lang === 'zh' ? '当前剩余额度' : 'Remaining Quota'}
+                    {lang === 'zh' ? '当前剩余点数' : 'Remaining Points'}
                   </p>
                   {loading ? (
                     <p className="animate-pulse text-gray-400">Loading...</p>
                   ) : (
                     <p className="text-3xl font-bold text-orange-600">
-                      {remainingQuota} {lang === 'zh' ? '次' : 'generations'}
+                      {remainingQuota} {lang === 'zh' ? '点' : 'pts'}
                     </p>
                   )}
                 </div>
@@ -182,7 +181,7 @@ export default function QuotaPage() {
             
             {success && (
               <div className="mt-4 bg-green-100 text-green-700 px-6 py-3 rounded-xl inline-block">
-                ✅ {lang === 'zh' ? '支付成功！额度已到账' : 'Payment successful! Quota added'}
+                ✅ {lang === 'zh' ? '支付成功！点数已到账' : 'Payment successful! Points added'}
               </div>
             )}
             
@@ -193,9 +192,44 @@ export default function QuotaPage() {
             )}
           </div>
 
-          {/* Product Pricing Cards */}
-          <div className="grid md:grid-cols-3 gap-6">
-            {QUOTA_PRODUCTS.map((product) => {
+          {/* First Order Exclusive Banner */}
+          {firstOrderProduct && firstOrderEligible && (
+            <div className="mb-8 bg-gradient-to-r from-red-500 to-orange-500 rounded-3xl p-6 text-white shadow-xl">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="text-center md:text-left">
+                  <div className="flex items-center gap-2 justify-center md:justify-start mb-1">
+                    <span className="bg-yellow-300 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                      {lang === 'zh' ? '限时专属' : 'EXCLUSIVE'}
+                    </span>
+                    <span className="text-white/90 text-sm">
+                      {lang === 'zh' ? '每人限购1次' : 'Limit 1 per user'}
+                    </span>
+                  </div>
+                  <h3 className="text-2xl font-bold">
+                    {lang === 'zh' ? '🎁 首单体验包' : '🎁 First Order Pack'}
+                  </h3>
+                  <p className="text-white/80 mt-1">
+                    {lang === 'zh' 
+                      ? `仅需 ¥2.9 即可获得 15 点，超低门槛体验 AI 生成`
+                      : `Only $0.49 for 15 points, try AI generation at minimal cost`}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handlePurchase(firstOrderProduct.id)}
+                  disabled={purchasing !== null}
+                  className="px-8 py-4 bg-white text-orange-600 font-bold text-xl rounded-2xl hover:bg-orange-50 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  {purchasing === firstOrderProduct.id
+                    ? (lang === 'zh' ? '跳转中...' : 'Redirecting...')
+                    : (lang === 'zh' ? `¥2.9 立即购买` : `$0.49 Buy Now`)}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Main Pricing Cards */}
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+            {mainProducts.map((product) => {
               const isPopular = product.popular;
               const isBestValue = product.bestValue;
               const price = product.prices[currency];
@@ -231,11 +265,11 @@ export default function QuotaPage() {
                         {getFormattedPrice(price, currency)}
                       </div>
                       <div className="text-gray-600 mt-2">
-                        {product.quota} {lang === 'zh' ? '次生成' : 'generations'}
+                        {product.quota} {lang === 'zh' ? '点' : 'points'}
                       </div>
                       <div className="text-sm text-green-600 mt-1 font-medium">
                         ≈ {getFormattedPrice(price / product.quota, currency)}{' '}
-                        {lang === 'zh' ? '/次' : '/generation'}
+                        {lang === 'zh' ? '/点' : '/pt'}
                       </div>
                     </div>
                     
@@ -259,46 +293,77 @@ export default function QuotaPage() {
             })}
           </div>
 
+          {/* Flex Pack */}
+          {flexProduct && (
+            <div className="mb-12 bg-white rounded-3xl p-6 shadow-lg border-2 border-dashed border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-2xl">⚡</span>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    {lang === 'zh' ? '随用随充' : 'Pay As You Go'}
+                  </h3>
+                </div>
+                <p className="text-gray-600">
+                  {lang === 'zh' 
+                    ? '1元 = 2点，按需购买，无需囤货，随时充值'
+                    : '$0.19 = 2 points, buy as needed, no need to stockpile'}
+                </p>
+              </div>
+              <button
+                onClick={() => handlePurchase(flexProduct.id)}
+                disabled={purchasing !== null}
+                className="px-8 py-4 bg-gray-800 text-white font-semibold text-lg rounded-2xl hover:bg-gray-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {purchasing === flexProduct.id
+                  ? (lang === 'zh' ? '跳转中...' : 'Redirecting...')
+                  : (lang === 'zh' ? `¥1 充 2 点` : `$0.19 for 2 pts`)}
+              </button>
+            </div>
+          )}
+
+          {/* Policy Note */}
+          <div className="mb-8 bg-blue-50 border border-blue-100 rounded-2xl p-4 text-center">
+            <p className="text-sm text-blue-700">
+              {lang === 'zh' 
+                ? '🎁 新用户注册即赠 5 点 · 首单体验包限购 1 次 · 点数永不过期'
+                : '🎁 New users get 5 free points · First order pack: 1 per user · Points never expire'}
+            </p>
+          </div>
+
           {/* Features Section */}
-          <div className="mt-16 bg-white rounded-3xl p-8 shadow-lg">
+          <div className="bg-white rounded-3xl p-8 shadow-lg">
             <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">
               {lang === 'zh' ? '为什么选择我们' : 'Why Choose Us'}
             </h3>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
-                  🌍
-                </div>
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">🌍</div>
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-1">
                     {lang === 'zh' ? '全球支付支持' : 'Global Payment Support'}
                   </h4>
                   <p className="text-gray-600 text-sm">
                     {lang === 'zh' 
-                      ? '支持信用卡、PayPal、支付宝、微信支付等多种支付方式'
-                      : 'Supports credit cards, PayPal, Alipay, WeChat Pay and more'}
+                      ? '支持信用卡、PayPal 等多种支付方式'
+                      : 'Supports credit cards, PayPal and more'}
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
-                  💰
-                </div>
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">💰</div>
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-1">
-                    {lang === 'zh' ? '额度永不过期' : 'Quota Never Expires'}
+                    {lang === 'zh' ? '点数永不过期' : 'Points Never Expire'}
                   </h4>
                   <p className="text-gray-600 text-sm">
                     {lang === 'zh' 
-                      ? '购买的额度永久有效，想用就用'
-                      : 'Your purchased quota never expires, use anytime'}
+                      ? '购买的点数永久有效，想用就用'
+                      : 'Your purchased points never expire, use anytime'}
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
-                  🔒
-                </div>
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">🔒</div>
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-1">
                     {lang === 'zh' ? '安全支付' : 'Secure Payment'}
@@ -311,9 +376,7 @@ export default function QuotaPage() {
                 </div>
               </div>
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
-                  💬
-                </div>
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">💬</div>
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-1">
                     {lang === 'zh' ? '多语言支持' : 'Multi-language Support'}

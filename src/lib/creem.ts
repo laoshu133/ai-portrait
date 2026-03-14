@@ -164,50 +164,75 @@ export interface QuotaProduct {
   };
   popular?: boolean;
   bestValue?: boolean;
+  firstOrderOnly?: boolean; // 首单专属，限购1次
+  flexPack?: boolean;       // 随用随充灵活选项
 }
 
-// Available quota products - Creem will handle currency conversion automatically
-// but we define localized prices for better UX
+// Available quota products
 export const QUOTA_PRODUCTS: QuotaProduct[] = [
   {
-    id: 'starter-2',
-    name: { zh: '体验包', en: 'Starter Pack' },
-    description: { zh: '适合偶尔需要生成照片', en: 'Perfect for occasional use' },
+    id: 'first-order-15',
+    name: { zh: '首单体验包', en: 'First Order Pack' },
+    description: { zh: '新用户专属·限购1次·超值尝鲜', en: 'New user exclusive · Limited 1 purchase' },
+    quota: 15,
+    prices: {
+      USD: 0.49,
+      CNY: 2.9,
+      EUR: 0.45,
+      GBP: 0.39,
+    },
+    firstOrderOnly: true,
+  },
+  {
+    id: 'flex-2',
+    name: { zh: '随充2点', en: 'Flex 2 Points' },
+    description: { zh: '随用随充，按需购买', en: 'Pay as you go, buy as needed' },
     quota: 2,
     prices: {
-      USD: 1.99,
-      CNY: 4.99,
-      EUR: 1.79,
-      GBP: 1.59,
+      USD: 0.19,
+      CNY: 1,
+      EUR: 0.17,
+      GBP: 0.15,
     },
-    popular: false,
+    flexPack: true,
   },
   {
-    id: 'value-5',
-    name: { zh: '超值包', en: 'Value Pack' },
-    description: { zh: '推荐给家庭使用，帮亲友一起生成', en: 'Recommended for family use' },
-    quota: 5,
+    id: 'starter-25',
+    name: { zh: '基础包', en: 'Starter Pack' },
+    description: { zh: '适合偶尔使用', en: 'Perfect for occasional use' },
+    quota: 25,
     prices: {
-      USD: 3.99,
-      CNY: 9.99,
-      EUR: 3.59,
-      GBP: 3.19,
+      USD: 1.49,
+      CNY: 9.9,
+      EUR: 1.35,
+      GBP: 1.19,
+    },
+  },
+  {
+    id: 'value-100',
+    name: { zh: '超值包', en: 'Value Pack' },
+    description: { zh: '家庭常用，超高性价比', en: 'Recommended for family use' },
+    quota: 100,
+    prices: {
+      USD: 3.79,
+      CNY: 25.9,
+      EUR: 3.45,
+      GBP: 3.09,
     },
     popular: true,
-    bestValue: true,
   },
   {
-    id: 'pro-12',
+    id: 'pro-350',
     name: { zh: '专业包', en: 'Pro Pack' },
-    description: { zh: '经常使用，性价比最高', en: 'Frequent use, best value' },
-    quota: 12,
+    description: { zh: '高频使用，最高性价比', en: 'Frequent use, best value per point' },
+    quota: 350,
     prices: {
-      USD: 7.99,
-      CNY: 19.99,
-      EUR: 7.19,
-      GBP: 6.49,
+      USD: 9.99,
+      CNY: 68,
+      EUR: 9.19,
+      GBP: 8.29,
     },
-    popular: false,
+    bestValue: true,
   },
 ];
 

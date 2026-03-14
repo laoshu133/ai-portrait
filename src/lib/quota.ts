@@ -27,6 +27,8 @@ export interface UserQuota {
   totalPurchased: number;
   totalGenerated: number;
   lastUpdated: number;
+  hasPurchased?: boolean; // 是否曾购买过，用于限制首单专属
+  usedFirstOrderPack?: boolean; // 是否已使用首单体验包
 }
 
 // Get quota object path for user
@@ -34,14 +36,16 @@ function getQuotaKey(userId: string): string {
   return `quotas/${userId}.json`;
 }
 
-// Initialize a new user with 1 free generation
+// Initialize a new user with 5 free points (新用户注册送5点)
 export async function initializeUserQuota(userId: string): Promise<UserQuota> {
   const initialQuota: UserQuota = {
     userId,
-    remainingQuota: 1, // 1 free generation for new users
+    remainingQuota: 5, // 新用户注册赠送5点
     totalPurchased: 0,
     totalGenerated: 0,
     lastUpdated: Date.now(),
+    hasPurchased: false,
+    usedFirstOrderPack: false,
   };
 
   await saveUserQuota(initialQuota);
@@ -106,11 +110,15 @@ export async function deductQuota(userId: string): Promise<{ success: boolean; r
 }
 
 // Add quota after successful purchase
-export async function addQuota(userId: string, amount: number): Promise<number> {
+export async function addQuota(userId: string, amount: number, isFirstOrderPack?: boolean): Promise<number> {
   const quota = await getUserQuota(userId);
   
   quota.remainingQuota += amount;
   quota.totalPurchased += amount;
+  quota.hasPurchased = true;
+  if (isFirstOrderPack) {
+    quota.usedFirstOrderPack = true;
+  }
   await saveUserQuota(quota);
   
   return quota.remainingQuota;

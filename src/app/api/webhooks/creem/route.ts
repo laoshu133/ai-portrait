@@ -37,8 +37,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Product not found' }, { status: 404 });
       }
       
-      // Add quota to user
-      const newRemaining = await addQuota(userId, product.quota);
+      // Add quota to user (传递firstOrderOnly标记)
+      const newRemaining = await addQuota(userId, product.quota, product.firstOrderOnly);
       
       console.log(`Added ${product.quota} quota to user ${userId}, remaining: ${newRemaining}`);
       
