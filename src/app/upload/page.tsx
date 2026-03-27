@@ -184,26 +184,75 @@ function UploadContent() {
     });
   }, []);
 
+  // 调试日志状态
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
+
+  // 添加调试日志
+  const addDebugLog = useCallback((message: string) => {
+    const timestamp = new Date().toISOString();
+    const logMessage = `[${timestamp}] ${message}`;
+    console.log(logMessage);
+    setDebugLogs(prev => [...prev, logMessage]);
+  }, []);
+
   const generateImage = useCallback(async (file: File) => {
     setIsGenerating(true);
     setError(null);
     
+    // 清空之前的调试日志
+    setDebugLogs([]);
+    
     try {
+      // 1. 点击生成按钮时的参数、上传的文件信息
+      addDebugLog('========== 开始生成证件照 ==========');
+      addDebugLog('1. 点击生成按钮时的参数和文件信息:');
+      addDebugLog(`   - 文件名: ${file.name}`);
+      addDebugLog(`   - 文件大小: ${(file.size / 1024).toFixed(2)} KB`);
+      addDebugLog(`   - 文件类型: ${file.type}`);
+      addDebugLog(`   - 照片类型: ${effectivePhotoType}`);
+      addDebugLog(`   - 语言: ${lang}`);
+      if (effectivePhotoType === 'id') {
+        addDebugLog(`   - 证件照用途: ${selectedPurpose}`);
+        addDebugLog(`   - 背景颜色: ${backgroundColor}`);
+      }
+
+      // 2. FormData构造的完整过程，所有append的字段和值
+      addDebugLog('2. 构造FormData:');
       const formData = new FormData();
+      
+      addDebugLog('   - append: image, 值: [File对象]');
       formData.append('image', file);
+      
+      addDebugLog(`   - append: type, 值: ${effectivePhotoType}`);
       formData.append('type', effectivePhotoType);
+      
+      addDebugLog(`   - append: lang, 值: ${lang}`);
       formData.append('lang', lang);
+      
       // Add ID photo custom parameters
       if (effectivePhotoType === 'id') {
+        addDebugLog(`   - append: purpose, 值: ${selectedPurpose}`);
         formData.append('purpose', selectedPurpose);
+        
+        addDebugLog(`   - append: background, 值: ${backgroundColor}`);
         formData.append('background', backgroundColor);
       }
+
+      // 3. 发送请求的完整目标地址、请求头
+      addDebugLog('3. 准备发送请求:');
+      const requestUrl = '/api/generate';
+      addDebugLog(`   - 目标地址: ${requestUrl}`);
+      addDebugLog('   - 请求方法: POST');
+      addDebugLog('   - 请求头:');
+      addDebugLog('     Content-Type: multipart/form-data (由浏览器自动设置)');
 
       // Set timeout: 3 minutes
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 180000);
 
-      const response = await fetch('/api/generate', {
+      addDebugLog('4. 发送请求...');
+      const response = await fetch(requestUrl, {
         method: 'POST',
         body: formData,
         signal: controller.signal,
@@ -211,16 +260,31 @@ function UploadContent() {
 
       clearTimeout(timeoutId);
 
+      // 4. 完整的请求响应内容
+      addDebugLog('5. 收到响应:');
+      addDebugLog(`   - 响应状态: ${response.status} ${response.statusText}`);
+      addDebugLog('   - 响应头:');
+      response.headers.forEach((value, key) => {
+        addDebugLog(`     ${key}: ${value}`);
+      });
+
       let data;
       const contentType = response.headers.get('content-type');
+      addDebugLog(`   - Content-Type: ${contentType}`);
+      
       if (contentType && contentType.includes('application/json')) {
         data = await response.json();
+        addDebugLog('   - 响应内容 (JSON):');
+        addDebugLog(`     ${JSON.stringify(data, null, 2).replace(/\n/g, '\n     ')}`);
       } else {
         const text = await response.text();
+        addDebugLog('   - 响应内容 (文本):');
+        addDebugLog(`     ${text.substring(0, 500)}${text.length > 500 ? '...' : ''}`);
         throw new Error(`Server error: ${response.status} - ${text.substring(0, 100)}`);
       }
 
       if (!response.ok) {
+        addDebugLog(`   - 请求失败: ${response.status}`);
         if (response.status === 401) {
           router.push('/sign-in');
           return;
@@ -233,16 +297,32 @@ function UploadContent() {
       }
 
       if (data.imageUrl && data.recordId) {
+        addDebugLog('6. 生成成功!');
+        addDebugLog(`   - 图片URL: ${data.imageUrl}`);
+        addDebugLog(`   - 记录ID: ${data.recordId}`);
+        if (data.remainingQuota !== undefined) {
+          addDebugLog(`   - 剩余额度: ${data.remainingQuota}`);
+        }
+        addDebugLog('========== 生成完成 ==========');
+        
         // Redirect to detail page after successful generation
         router.push(`/history/${data.recordId}`);
         if (data.remainingQuota !== undefined) {
           setRemainingQuota(data.remainingQuota);
         }
       } else {
+        addDebugLog('   - 错误: 没有返回图片');
         throw new Error(data.error || 'No image returned');
       }
     } catch (err: any) {
+      addDebugLog('========== 生成出错 ==========');
+      addDebugLog(`错误类型: ${err.name || 'Unknown'}`);
+      addDebugLog(`错误消息: ${err.message}`);
+      if (err.stack) {
+        addDebugLog(`堆栈跟踪: ${err.stack}`);
+      }
       console.error('Generation error:', err);
+      
       if (err.name === 'AbortError') {
         setError(lang === 'zh' ? '生成超时，请重试' : 'Generation timed out, please try again');
       } else {
@@ -251,7 +331,7 @@ function UploadContent() {
     } finally {
       setIsGenerating(false);
     }
-  }, [effectivePhotoType, lang, selectedPurpose, backgroundColor, router]);
+  }, [effectivePhotoType, lang, selectedPurpose, backgroundColor, router, addDebugLog]);
 
   // Auto load for regenerate
   useEffect(() => {
@@ -661,6 +741,42 @@ function UploadContent() {
                 {lang === 'zh' ? '取消' : 'Cancel'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 调试面板切换按钮 */}
+      <button
+        onClick={() => setShowDebugPanel(!showDebugPanel)}
+        className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-gray-700 text-sm z-40"
+      >
+        {showDebugPanel ? '隐藏调试' : '显示调试'}
+      </button>
+
+      {/* 调试面板 */}
+      {showDebugPanel && (
+        <div className="fixed bottom-20 right-4 w-96 max-h-96 bg-gray-900 text-white rounded-lg shadow-2xl overflow-hidden z-50">
+          <div className="bg-gray-800 px-4 py-2 flex justify-between items-center">
+            <h3 className="font-semibold text-sm">🔍 调试日志</h3>
+            <button
+              onClick={() => setDebugLogs([])}
+              className="text-xs bg-gray-700 px-2 py-1 rounded hover:bg-gray-600"
+            >
+              清空
+            </button>
+          </div>
+          <div className="p-4 overflow-y-auto max-h-80 font-mono text-xs">
+            {debugLogs.length === 0 ? (
+              <p className="text-gray-500">暂无日志，开始生成照片后会显示调试信息...</p>
+            ) : (
+              <div className="space-y-1">
+                {debugLogs.map((log, index) => (
+                  <div key={index} className="break-all">
+                    {log}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
