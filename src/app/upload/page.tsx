@@ -331,6 +331,12 @@ function UploadContent() {
   }, [reset, router]);
 
   // Redirect if not signed in
+  useEffect(() => {
+    if (!isSignedIn) {
+      router.push('/sign-in');
+    }
+  }, [isSignedIn, router]);
+
   if (!isSignedIn) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50 flex items-center justify-center">
