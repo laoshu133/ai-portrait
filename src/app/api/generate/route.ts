@@ -1,378 +1,74 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { uploadToR2 } from '@/lib/r2';
+import { NextRequest, NextResponse } from 'next/server';
 import { addGenerationRecord, updateGenerationRecord } from '@/lib/history';
-import { getUserQuota, deductQuota, hasEnoughQuota } from '@/lib/quota';
-import * as fs from 'fs';
-import * as path from 'path';
-
-export const runtime = 'nodejs';
-export const maxDuration = 180;
-
-const MAX_IMAGE_SIZE_MB = 4;
-
-const LOG_FILE = path.join(process.cwd(), 'generation-debug.log');
-
-function log(message: string) {
-  const timestamp = new Date().toISOString();
-  const line = `[${timestamp}] ${message}\n`;
-  try {
-    fs.appendFileSync(LOG_FILE, line);
-  } catch (e) {
-    console.error('Failed to write log:', e);
-  }
-  console.log(message);
-}
-
-function extractBase64ImageFromMessage(message: any): string | null {
-  // Check for aihubmix format: multi_mod_content with inline_data
-  if (Array.isArray(message.multi_mod_content)) {
-    log(`Found multi_mod_content with ${message.multi_mod_content.length} parts`);
-    for (const part of message.multi_mod_content) {
-      if (part?.inline_data?.data) {
-        log(`Found image in multi_mod_content.inline_data.data, length: ${part.inline_data.data.length}`);
-        return part.inline_data.data;
-      }
-      if (part?.data && part?.mime_type?.startsWith('image/')) {
-        log(`Found image in multi_mod_content.part.data, length: ${part.data.length}`);
-        return part.data;
-      }
-    }
-  }
-
-  if (!message?.content) {
-    log('message.content is empty');
-    return null;
-  }
-
-  if (Array.isArray(message.content)) {
-    for (const part of message.content) {
-      if (part?.data && part?.mime_type?.startsWith('image/')) {
-        log(`Found image in part.data, length: ${part.data.length}`);
-        return part.data;
-      }
-      if (part?.inlineData?.data) {
-        log(`Found image in part.inlineData.data`);
-        return part.inlineData.data;
-      }
-      if (part?.type === 'image_url' && part?.image_url?.url) {
-        const url = part.image_url.url;
-        log(`Found image_url: ${url.substring(0, 100)}...`);
-        return url.startsWith('data:image/') ? url.split(',')[1] : url;
-      }
-    }
-  }
-
-  if (typeof message.content === 'string') {
-    const match = message.content.match(/data:image\/[a-zA-Z0-9]+;base64,([A-Za-z0-9+/=]+)/);
-    if (match) {
-      log(`Found base64 image in string content`);
-      return match[1];
-    }
-  }
-
-  log('No image found in message');
-  return null;
-}
+import { hasEnoughQuota } from '@/lib/quota';
 
 export async function POST(req: NextRequest) {
-  log('=== Starting generation request ===');
-  
   try {
     const { userId } = await auth();
-    log(`User ID: ${userId}`);
-    
+
     if (!userId) {
-      log('Unauthorized: no userId');
-      return NextResponse.json(
-        { error: 'Unauthorized - Please sign in' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized - Please sign in' }, { status: 401 });
     }
 
-    // Check user quota before proceeding
     const hasQuota = await hasEnoughQuota(userId);
     if (!hasQuota) {
-      log(`User ${userId} has insufficient quota`);
       return NextResponse.json(
         { error: 'INSUFFICIENT_QUOTA', message: '额度不足，请购买更多生成额度' },
         { status: 402 }
       );
     }
-    log(`User ${userId} has enough quota, proceeding...`);
 
     const formData = await req.formData();
-    const image = formData.get('image') as File;
+    const image = formData.get('image');
     const type = (formData.get('type') as string) || 'id';
     const lang = (formData.get('lang') as string) || 'zh';
     const purpose = (formData.get('purpose') as string) || 'common';
     const background = (formData.get('background') as string) || 'blue';
 
-    log(`Received: image=${image?.name}, size=${image?.size}, type=${type}, purpose=${purpose}, background=${background}`);
-
-    if (!image) {
-      log('No image provided');
+    if (!(image instanceof File)) {
       return NextResponse.json({ error: 'No image provided' }, { status: 400 });
     }
 
-    if (image.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
-      log(`Image too large: ${image.size} bytes > ${MAX_IMAGE_SIZE_MB * 1024 * 1024} bytes`);
-      return NextResponse.json(
-        { error: `图片太大，请上传不超过 ${MAX_IMAGE_SIZE_MB}MB 的图片` }, 
-        { status: 413 }
-      );
-    }
-
-    // Convert to base64
     const arrayBuffer = await image.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    const base64Input = buffer.toString('base64');
     const mimeType = image.type || 'image/jpeg';
-    const imageDataUrl = `data:${mimeType};base64,${base64Input}`;
-    log(`Input converted: base64 length=${base64Input.length}`);
+    const originalUrl = `data:${mimeType};base64,${buffer.toString('base64')}`;
 
-    // Clear references immediately
-    (buffer as any) = null;
-    (arrayBuffer as any) = null;
-
-    // Purpose names for prompt
-    const purposeNamesZh: Record<string, string> = {
-      common: '一寸证件照',
-      common2: '二寸证件照',
-      passport: '护照/签证照片',
-      idcard: '中国大陆身份证照片',
-      driver: '驾驶证照片',
-      social: '社保照片',
-      cv: '简历照片',
-    };
-    const purposeNamesEn: Record<string, string> = {
-      common: '1 inch ID photo',
-      common2: '2 inch ID photo',
-      passport: 'passport/visa photo',
-      idcard: 'Chinese ID card photo',
-      driver: 'driver license photo',
-      social: 'social security photo',
-      cv: 'resume photo',
-    };
-
-    let prompt: string;
-    if (type === 'id') {
-      const purposeName = lang === 'zh' ? purposeNamesZh[purpose] : purposeNamesEn[purpose];
-      if (lang === 'zh') {
-        prompt = `基于这张照片，生成一张正式的${purposeName}，${background}背景，穿着正装，面带微笑，保持人物五官特征完全不变，裁剪为标准证件照构图。`;
-      } else {
-        prompt = `Based on this photo, generate a formal ${purposeName} with ${background} background, business attire, smiling, keep the original person facial features completely unchanged, crop to standard ID photo composition.`;
-      }
-    } else if (type === 'festival') {
-      if (lang === 'zh') {
-        prompt = '基于这张照片，生成一张喜庆节日照片，红色喜庆背景，温暖的笑容，保持人物特征不变。';
-      } else {
-        prompt = 'Based on this photo, generate a festive celebration photo with celebratory red background, warm smile, keep the original person features.';
-      }
-    } else if (type === 'memorial') {
-      if (lang === 'zh') {
-        prompt = '基于这张照片，生成一张庄重的黑白纪念肖像，严肃的表情，经典风格，保持人物特征不变。';
-      } else {
-        prompt = 'Based on this photo, generate a dignified black and white memorial portrait, serious expression, classic style, keep the original person features.';
-      }
-    } else {
-      if (lang === 'zh') {
-        prompt = '基于这张照片，生成一张正式的证件照，蓝色背景，穿着正装，面带微笑，保持人物特征不变。';
-      } else {
-        prompt = 'Based on this photo, generate a formal ID photo with blue background, business attire, smiling, keep the original person features.';
-      }
-    }
-    const apiUrl = process.env.AIHUBMIX_API_URL || 'https://aihubmix.com';
-    const apiKey = process.env.AIHUBMIX_API_KEY;
-    const model = process.env.AI_MODEL || 'gemini-3.1-flash-image-preview';
-
-    log(`API config: apiUrl=${apiUrl}, model=${model}, hasKey=${!!apiKey}`);
-
-    if (!apiKey || apiKey === 'demo' || apiKey.includes('your-')) {
-      log('API key not configured');
-      return NextResponse.json(
-        { error: 'AI API key not configured' },
-        { status: 500 }
-      );
-    }
-
-    // Create record immediately (even if generation fails)
     const record = await addGenerationRecord(userId, {
-      type: type as any,
-      originalUrl: imageDataUrl,
+      type: type as 'id' | 'festival' | 'memorial',
+      originalUrl,
       generatedUrl: null,
-      status: 'processing',
-      lang: lang,
+      status: 'queued',
+      lang,
       purpose: type === 'id' ? purpose : undefined,
       background: type === 'id' ? background : undefined,
     });
-    log(`Created history record: id=${record.id}`);
 
-    const requestBody = {
-      model,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'text', text: prompt },
-          { type: 'image_url', image_url: { url: imageDataUrl } }
-        ]
-      }],
-      max_tokens: 512
-    };
+    await updateGenerationRecord(userId, record.id, {
+      taskId: record.id,
+      status: 'processing',
+    });
 
-    log(`Request body created, messages=${requestBody.messages.length}, max_tokens=${requestBody.max_tokens}`);
+    const origin = req.nextUrl.origin;
+    fetch(`${origin}/api/generate/${record.id}?userId=${encodeURIComponent(userId)}`, {
+      method: 'POST',
+      headers: {
+        'x-internal-task-secret': process.env.INTERNAL_TASK_SECRET || '',
+      },
+      cache: 'no-store',
+    }).catch((error) => {
+      console.error('Failed to start background generation:', error);
+    });
 
-    // Clear original image data reference
-    (base64Input as any) = null;
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      log('Request timeout after 120 seconds');
-      controller.abort();
-    }, 120000); // 2 minutes
-
-    try {
-      log(`Sending request to ${apiUrl}/v1/chat/completions...`);
-      const response = await fetch(`${apiUrl}/v1/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      log(`AI API responded with status: ${response.status} ${response.statusText}`);
-
-      if (!response.ok) {
-        const text = await response.text();
-        const preview = text.length > 200 ? text.substring(0, 200) : text;
-        log(`AI API error: ${response.status} - ${preview}`);
-        await updateGenerationRecord(userId, record.id, {
-          status: 'failed',
-          error: `${response.status}: ${preview}`
-        });
-        return NextResponse.json(
-          { error: `AI error ${response.status}: ${preview}` },
-          { status: 502 }
-        );
-      }
-
-      const responseText = await response.text();
-      log(`Response received, length: ${responseText.length}`);
-      
-      let data;
-      try {
-        data = JSON.parse(responseText);
-        log('JSON parsed successfully');
-        log(`choices: ${data.choices?.length}, created: ${data.created}, model: ${data.model}`);
-      } catch (e) {
-        const preview = responseText.length > 200 ? responseText.substring(0, 200) : responseText;
-        log(`JSON parse failed: ${e}, preview: ${preview}`);
-        await updateGenerationRecord(userId, record.id, {
-          status: 'failed',
-          error: `JSON parse failed: ${preview}`
-        });
-        return NextResponse.json({ error: 'Invalid JSON response' }, { status: 502 });
-      }
-
-      if (!data.choices?.length) {
-        log(`No choices in response: ${JSON.stringify(Object.keys(data))}`);
-        await updateGenerationRecord(userId, record.id, {
-          status: 'failed',
-          error: 'No choices in response'
-        });
-        return NextResponse.json({ error: 'No response from AI' }, { status: 502 });
-      }
-
-      const choice = data.choices[0];
-      if (!choice.message) {
-        log(`No message in first choice: ${JSON.stringify(Object.keys(choice))}`);
-        await updateGenerationRecord(userId, record.id, {
-          status: 'failed',
-          error: 'No message in response'
-        });
-        return NextResponse.json({ error: 'Invalid response format' }, { status: 502 });
-      }
-
-      log(`Got message: role=${choice.message.role}, content type=${typeof choice.message.content}`);
-
-      const imageBase64 = extractBase64ImageFromMessage(choice.message);
-      if (!imageBase64) {
-        let preview = '';
-        if (typeof choice.message.content === 'string') {
-          preview = choice.message.content.substring(0, 100);
-        } else if (Array.isArray(choice.message.content)) {
-          preview = `Array(${choice.message.content.length})`;
-        }
-        log(`No image extracted: content preview=${preview}`);
-        await updateGenerationRecord(userId, record.id, {
-          status: 'failed',
-          error: `No image returned: ${preview}`
-        });
-        return NextResponse.json({ error: 'AI did not return an image' }, { status: 502 });
-      }
-
-      log(`Image extracted: base64 length=${imageBase64.length}`);
-
-      // Free up memory
-      (data as any) = null;
-      (responseText as any) = null;
-      (requestBody as any) = null;
-
-      const imageBuffer = Buffer.from(imageBase64, 'base64');
-      const timestamp = Date.now();
-      const filename = `generated/${userId}_${timestamp}_${type}.png`;
-      log(`Buffer created: size=${imageBuffer.length} bytes, filename=${filename}`);
-
-      (imageBase64 as any) = null;
-
-      const uploadedUrl = await uploadToR2(imageBuffer, filename, 'image/png');
-      log(`Uploaded to R2: ${uploadedUrl}`);
-      
-      await updateGenerationRecord(userId, record.id, {
-        status: 'success',
-        generatedUrl: uploadedUrl
-      });
-      log('Updated history record status to success');
-
-      // Deduct 1 quota after successful generation
-      const deductResult = await deductQuota(userId);
-      if (deductResult.success) {
-        log(`Deducted 1 quota, remaining: ${deductResult.remaining}`);
-      } else {
-        log(`Quota deduction failed, but generation succeeded. remaining: ${deductResult.remaining}`);
-      }
-
-      log('=== Generation completed successfully ===');
-      return NextResponse.json({ 
-        success: true, 
-        imageUrl: uploadedUrl,
-        remainingQuota: deductResult.remaining,
-        recordId: record.id
-      });
-    } catch (err) {
-      clearTimeout(timeoutId);
-      const errMsg = err instanceof Error ? err.message : String(err);
-      const errStack = err instanceof Error ? err.stack : '';
-      log(`Fetch failed: ${errMsg}\n${errStack}`);
-      await updateGenerationRecord(userId, record.id, {
-        status: 'failed',
-        error: `Fetch failed: ${errMsg}`
-      });
-      throw err;
-    }
-
-  } catch (err) {
-    const errMsg = err instanceof Error ? err.message : String(err);
-    const errStack = err instanceof Error ? err.stack : '';
-    log(`FATAL ERROR: ${errMsg}\n${errStack}`);
-    return NextResponse.json(
-      { error: `生成失败: ${errMsg}` },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: true,
+      recordId: record.id,
+      taskId: record.id,
+      status: 'queued',
+    });
+  } catch (error) {
+    console.error('Failed to create generation task:', error);
+    return NextResponse.json({ error: '创建生成任务失败' }, { status: 500 });
   }
 }

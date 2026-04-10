@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useRef, useEffect } from 'react';
 import { zh, en } from '@/i18n/translations';
 import { UserButton, useUser, SignInButton, SignedIn, SignedOut } from '@clerk/nextjs';

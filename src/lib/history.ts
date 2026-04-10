@@ -9,7 +9,7 @@ const r2Client = new S3Client({
   },
 });
 
-export type GenerationStatus = 'processing' | 'success' | 'failed';
+export type GenerationStatus = 'queued' | 'processing' | 'success' | 'failed';
 
 export interface GenerationRecord {
   id: string;
@@ -22,6 +22,11 @@ export interface GenerationRecord {
   lang: string;
   purpose?: string;
   background?: string;
+  taskId?: string;
+  outputMimeType?: string;
+  outputExtension?: string;
+  outputWidth?: number;
+  outputHeight?: number;
 }
 
 export async function getUserHistory(userId: string): Promise<GenerationRecord[]> {
@@ -71,10 +76,11 @@ export async function addGenerationRecord(
 ): Promise<GenerationRecord> {
   const history = await getUserHistory(userId);
   
+  const now = Date.now();
   const newRecord: GenerationRecord = {
     ...record,
-    id: `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-    timestamp: Date.now(),
+    id: `${now}-${Math.random().toString(36).substring(2, 8)}`,
+    timestamp: now,
   };
   
   history.unshift(newRecord);

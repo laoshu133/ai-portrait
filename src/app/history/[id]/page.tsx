@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { zh, en } from '@/i18n/translations';
@@ -153,7 +155,7 @@ export default function HistoryDetailPage() {
     );
   }
 
-  const isGenerating = record.status === 'failed' ? false : !record.generatedUrl;
+  const isGenerating = record.status === 'queued' || record.status === 'processing';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50">
@@ -219,7 +221,7 @@ export default function HistoryDetailPage() {
               </div>
               <div>
                 <span className="font-medium">{lang === 'zh' ? '创建时间：' : 'Created: '}</span>
-                {new Date(record.createdAt).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')}
+                {new Date(record.timestamp).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')}
               </div>
               {record.type === 'id' && record.purpose && (
                 <div>
@@ -324,7 +326,7 @@ export default function HistoryDetailPage() {
                   </a>
                   <a
                     href={record.generatedUrl}
-                    download={`portrait-${record.id}.jpg`}
+                    download={`portrait-${record.id}.${record.outputExtension || 'png'}`}
                     className="flex-1 px-4 py-2 bg-orange-600 text-white text-center rounded-lg text-sm font-medium hover:bg-orange-700"
                   >
                     {lang === 'zh' ? '下载' : 'Download'}

@@ -1,10 +1,13 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useRef, Suspense, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { zh, en } from '@/i18n/translations';
 import { UserButton, useUser } from '@clerk/nextjs';
 import Link from 'next/link';
+import { ID_PHOTO_SPECS } from '@/lib/id-photo';
 
 type PhotoType = 'id' | 'festival' | 'memorial';
 
@@ -14,17 +17,20 @@ interface IdPhotoOption {
   nameZh: string;
   nameEn: string;
   aspectRatio: string;
+  sizeId: string;
+  width: number;
+  height: number;
 }
 
-const ID_PHOTO_PURPOSES: IdPhotoOption[] = [
-  { key: 'common', nameZh: '通用一寸', nameEn: 'Common 1 inch', aspectRatio: '25:35' },
-  { key: 'common2', nameZh: '通用二寸', nameEn: 'Common 2 inch', aspectRatio: '35:49' },
-  { key: 'passport', nameZh: '护照/签证', nameEn: 'Passport/Visa', aspectRatio: '35:45' },
-  { key: 'idcard', nameZh: '中国大陆身份证', nameEn: 'Chinese ID Card', aspectRatio: '1:1' },
-  { key: 'driver', nameZh: '驾驶证', nameEn: 'Driver License', aspectRatio: '1:1' },
-  { key: 'social', nameZh: '社保照片', nameEn: 'Social Security', aspectRatio: '35:45' },
-  { key: 'cv', nameZh: '简历照片', nameEn: 'Resume Photo', aspectRatio: '2:3' },
-];
+const ID_PHOTO_PURPOSES: IdPhotoOption[] = Object.entries(ID_PHOTO_SPECS).map(([key, spec]) => ({
+  key,
+  nameZh: spec.labelZh,
+  nameEn: spec.labelEn,
+  aspectRatio: spec.aspectRatio,
+  sizeId: spec.sizeId,
+  width: spec.width,
+  height: spec.height,
+}));
 
 // Background color options
 const BACKGROUND_COLORS = [
@@ -73,6 +79,7 @@ function UploadContent() {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [activeRecordId, setActiveRecordId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [remainingQuota, setRemainingQuota] = useState<number | null>(null);
   const [showQuotaModal, setShowQuotaModal] = useState(false);
@@ -294,6 +301,14 @@ function UploadContent() {
           return;
         }
         throw new Error(data.error || `Generation failed: ${response.status}`);
+      }
+
+      if (data.recordId) {
+        addDebugLog('6. 任务创建成功，进入异步轮询');
+        addDebugLog(`   - 记录ID: ${data.recordId}`);
+        setActiveRecordId(data.recordId);
+        router.push(`/history/${data.recordId}`);
+        return;
       }
 
       if (data.imageUrl && data.recordId) {
@@ -567,6 +582,9 @@ function UploadContent() {
                       }`}
                     >
                       {lang === 'zh' ? purpose.nameZh : purpose.nameEn}
+                      <div className="mt-1 text-xs text-gray-500">
+                        {purpose.sizeId} · {purpose.width}×{purpose.height} · {purpose.aspectRatio}
+                      </div>
                     </button>
                   ))}
                 </div>
